@@ -24,6 +24,24 @@ export function registerLauncher(): void {
   const projectRoot = app.isPackaged ? dirname(app.getPath('exe')) : resolve(__dirname, '../..')
   const dataRoot = join(projectRoot, 'data')
   const configFile = join(dataRoot, 'launcher.json')
+  const bundledRoot = join(projectRoot, 'runtime', 'retroarch')
+  async function withBundled(config: LauncherConfig): Promise<LauncherConfig> {
+    const executable = join(bundledRoot, 'retroarch.exe')
+    const snesCore = join(bundledRoot, 'cores', 'snes9x_libretro.dll')
+    const exists = async (file: string): Promise<boolean> =>
+      stat(file).then(
+        (value) => value.isFile(),
+        () => false
+      )
+    return {
+      ...config,
+      retroarchPath: config.retroarchPath || ((await exists(executable)) ? executable : ''),
+      cores: {
+        ...config.cores,
+        snes: config.cores.snes || ((await exists(snesCore)) ? snesCore : undefined)
+      }
+    }
+  }
   let queue: Promise<unknown> = Promise.resolve()
   async function load(): Promise<LauncherConfig> {
     try {
@@ -42,9 +60,9 @@ export function registerLauncher(): void {
         throw new Error(
           'Configuración de emulación no válida. Conserva data/launcher.json para revisarla antes de reemplazarla.'
         )
-      return data
+      return withBundled(data)
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return empty()
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return withBundled(empty())
       throw error
     }
   }

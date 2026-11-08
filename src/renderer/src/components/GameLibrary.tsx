@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Heart, Play, RefreshCw, Search } fro
 import { catalogSources, fetchCatalog } from '../catalog'
 import { useVaultAction } from '../hooks/useInputDevices'
 import GamePreview from './GamePreview'
+import GameArtwork from './GameArtwork'
 type Props = {
   system: { id: string; name: string; brand: string; mark: string; games: string[] }
   profileId: string
@@ -218,6 +219,19 @@ export default function GameLibrary({
         </span>
       </div>
       <div className="library-toolbar">
+        {system.id === 'snes' && (
+          <button
+            className="secondary filter-button"
+            onClick={() => {
+              setQuery('Super Mario World')
+              setSelectedIndex(0)
+              setOnlyLocal(false)
+              setOnlyFavorites(false)
+            }}
+          >
+            Mario · referencias
+          </button>
+        )}
         <label className="search">
           <Search size={17} />
           <input
@@ -399,7 +413,15 @@ export default function GameLibrary({
                     void select(game)
                   }}
                 >
-                  <span className="game-wheel-index">{String(position + 1).padStart(2, '0')}</span>
+                  <span className="game-wheel-index">
+                    <GameArtwork
+                      key={`${system.id}:${game}`}
+                      systemId={system.id}
+                      game={game}
+                      preferred="box"
+                      compact
+                    />
+                  </span>
                   <span className="game-wheel-title" title={game}>
                     {game}
                   </span>

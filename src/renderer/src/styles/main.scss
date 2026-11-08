@@ -1357,3 +1357,75 @@ button:disabled {
     margin-top: 6px;
   }
 }
+
+.game-artwork {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+.game-artwork img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.artwork-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  color: #b595be;
+}
+.artwork-placeholder svg {
+  width: 90px;
+  height: 80px;
+}
+.artwork-placeholder small {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+}
+.game-artwork--compact .artwork-placeholder svg {
+  width: 25px;
+  height: 25px;
+}
+.game-artwork--compact img {
+  object-fit: contain;
+  image-rendering: auto;
+}
+.game-wheel-card {
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+}
+.game-wheel-index {
+  display: block;
+  height: 100%;
+  min-height: 0;
+  width: 42px;
+}
+.game-preview > .game-artwork {
+  position: absolute;
+  inset: 0;
+}
+.edition-note {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  max-width: 70%;
+  padding: 4px 7px;
+  background: #090911dd;
+  color: #d9b9cd;
+  font-size: 9px;
+  z-index: 2;
+}
+@media (max-height: 700px) {
+  .hyperspin-library .library-toolbar {
+    gap: 7px;
+  }
+  .hyperspin-library .filter-button {
+    padding: 8px;
+    font-size: 11px;
+  }
+}

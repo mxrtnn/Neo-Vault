@@ -3,7 +3,7 @@ import { CheckCircle2, Download, FolderOpen } from 'lucide-react'
 import type { LauncherConfig } from '../../../shared/launcher'
 import { useLauncher } from '../hooks/useLauncher'
 export default function EmulationSettings(): React.JSX.Element {
-  const { config, error, setConfig } = useLauncher()
+  const { config, error, setConfig, refresh } = useLauncher()
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   async function choose(action: () => Promise<LauncherConfig | null>): Promise<void> {
@@ -44,6 +44,18 @@ export default function EmulationSettings(): React.JSX.Element {
     <section className="settings-panel emulation-settings">
       <span className="eyebrow">PRIMERA INTEGRACIÓN / WINDOWS</span>
       <h2>Conecta tu emulación</h2>
+      <p>
+        SNES incluido: Neo-Vault detecta automáticamente runtime/retroarch. Para preparar otra copia
+        del proyecto ejecuta npm run setup:snes desde su terminal.
+      </p>
+      <button
+        className="secondary"
+        onClick={() => {
+          void refresh()
+        }}
+      >
+        Detectar componentes incluidos
+      </button>
       <p>
         Instala RetroArch y solo los núcleos que necesites. Después asocia un archivo .nes, .sfc o
         .smc desde el catálogo. Las demás consolas siguen disponibles para explorar.

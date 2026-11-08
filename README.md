@@ -19,10 +19,12 @@ El objetivo es convertir una biblioteca local en una experiencia cómoda para ju
 
 - Selector de sistemas con imágenes remotas y un reemplazo visual cuando fallan.
 - Selector de juegos inspirado en HyperSpin, con transiciones y casillas de tamaño uniforme.
-- Vistas previas estáticas de juegos cuando existe una imagen coincidente; efectos visuales animados.
+- Portadas en la rueda y capturas de referencia, con índices de imágenes para ocho consolas y carga bajo demanda.
+- Reutilización de imágenes de otras revisiones del mismo título, identificadas como referencia de otra edición.
 - Búsqueda de títulos y filtros de favoritos y archivos locales.
 - Importación y asociación de archivos NES (.nes) y SNES (.sfc/.smc).
-- Configuración de RetroArch y núcleos FCEUmm / Snes9x mediante selectores de archivos.
+- Instalación de RetroArch y Snes9x dentro de runtime/retroarch mediante npm run setup:snes, con detección automática.
+- Configuración manual opcional de RetroArch y núcleos FCEUmm / Snes9x.
 - Lanzamiento externo sin shell, control de errores y retorno a Neo-Vault al terminar.
 - Preparación de carpetas de guardado por perfil, sistema y título para la integración NES/SNES.
 - Creación y selección de perfiles locales.
@@ -88,12 +90,12 @@ Referencias: [RetroArch](https://www.retroarch.com/platforms.html), [lanzamiento
 
 ## Primera prueba jugable: NES / SNES
 
-1. Descarga la versión oficial de escritorio de RetroArch para Windows y extráela en una ubicación escribible. Neo-Vault no la descarga ni instala automáticamente.
-2. En RetroArch, abre el descargador de núcleos e instala **FCEUmm** para NES o **Snes9x** para SNES.
+1. Ejecuta `npm run setup:snes` en Windows de 64 bits. El script descarga RetroArch 1.22.2 desde Libretro y el núcleo Snes9x, y los deja dentro de `runtime/retroarch`. No cambia instalaciones del sistema ni descarga juegos. La descarga inicial del archivo oficial es de unos 203 MB; los componentes seleccionados ocupan unos 157 MiB, sin las colecciones completas de temas, shaders ni bases de datos.
+2. Snes9x queda incluido. Si más adelante necesitas NES, instala FCEUmm desde RetroArch y selecciona su núcleo en Configuración.
 3. Reinicia Neo-Vault tras actualizar el código del proceso principal o preload: detén el proceso de desarrollo y vuelve a ejecutar `npm run dev`.
-4. En **Configuración → Conecta tu emulación**, selecciona `retroarch.exe` y el núcleo `fceumm_libretro.dll` o `snes9x_libretro.dll` correspondiente, normalmente en la carpeta `cores` de RetroArch.
-5. Abre NES o SNES y usa **Importar juego** para añadir un archivo local sin comprimir. También puedes asociar un archivo a un título existente. No se copian ni descargan juegos.
-6. Selecciona el perfil correcto y pulsa **Jugar** o Enter/A. Para volver, cierra RetroArch o utiliza Esc desde su ventana.
+4. En **Configuración → Conecta tu emulación**, comprueba que se detectan el ejecutable y el núcleo de SNES. Usa **Detectar componentes incluidos** si acabas de instalar. Los selectores manuales permiten usar otra instalación.
+5. Abre SNES y usa **Importar juego** para añadir un archivo local sin comprimir. También puedes asociar un archivo a un título existente. No se copian ni descargan juegos.
+6. Selecciona el perfil correcto y pulsa **Jugar** o Enter/A. Para volver, cierra RetroArch o utiliza Esc desde su ventana. El botón **Mario · referencias** muestra las ediciones de Super Mario World y sus imágenes; no instala el juego. Para jugar a ese título debes importar o asociar tu archivo local.
 
 El mapeo del mando dentro de RetroArch es independiente del launcher. Las pruebas automatizadas simulan el proceso externo y comprueban persistencia de rutas, cancelación de diálogos, separación de perfiles, conservación de una partida existente y recuperación ante errores; no prueban la compatibilidad de un juego ni del hardware físico.
 
@@ -158,10 +160,11 @@ Estas comprobaciones no sustituyen las pruebas visuales, de mandos físicos ni d
 ### Empaquetado para Windows
 
 ```bash
+npm run setup:snes
 npm run build:win
 ```
 
-El proyecto contiene la configuración y el script de empaquetado. La distribución final todavía debe probarse; generar el paquete no instala ni integra emuladores por sí solo.
+El proyecto contiene la configuración y el script de empaquetado. La distribución final todavía debe probarse. El empaquetado copia runtime/retroarch junto al ejecutable mediante extraFiles; prepara esa carpeta antes de compilar el instalador. Los binarios se mantienen fuera de Git y se obtienen con el script. La licencia de RetroArch y la de Snes9x se conservan en runtime/retroarch/licenses, junto con un manifiesto de fuentes, versión y hashes. La versión de RetroArch está fijada; el núcleo se obtiene del canal nightly y su hash queda registrado. Los hashes locales son un registro de integridad, no una firma independiente del proveedor.
 
 ## Controles
 
@@ -184,6 +187,24 @@ Los nombres de los botones pueden variar según el mando. Para detectar un dispo
 4. Verificar guardados reales y añadir exportación y recuperación de perfiles y partidas.
 5. Ampliar sistemas y completar recursos visuales.
 6. Medir rendimiento y preparar una distribución modular para Windows.
+
+## Imágenes de referencia y APIs
+
+Neo-Vault utiliza la API pública de árboles Git de GitHub para generar índices de Libretro Thumbnails. Los índices se incluyen como módulos separados y se cargan únicamente al entrar a cada consola; las imágenes PNG se solicitan bajo demanda desde su repositorio. No se descarga toda la colección de imágenes ni se necesita una clave de API para esta implementación.
+
+```bash
+npm run media:sync
+# Actualizar índices existentes:
+npm run media:sync -- --force
+# Actualizar solamente SNES:
+npm run media:sync -- --snes --force
+```
+
+La API de GitHub puede limitar solicitudes. Si una descarga de índice falla, no se reemplaza el archivo existente de ese sistema. Se incluyen índices para SNES, NES, N64, DS, Mega Drive, Atari 2600, PlayStation y Game Boy. MAME continúa con imágenes solicitadas por nombre como referencia provisional.
+
+En la comprobación inicial de SNES hubo coincidencias de recursos para 3.393 de 3.726 títulos y variantes; los 333 restantes no tenían coincidencia. No todos los juegos tienen todos los tipos de imágenes. Se prioriza la edición exacta; si se reutiliza una revisión o región del mismo título, se indica en la vista principal. Una ausencia o fallo de red muestra un icono de reemplazo.
+
+[ScreenScraper](https://www.screenscraper.fr/webapi2.php) es otra API posible para una futura integración con identificación de juegos y medios. Requiere las credenciales correspondientes y todavía no está integrada en Neo-Vault.
 
 ## Fuentes y créditos
 

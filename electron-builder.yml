@@ -3,6 +3,8 @@ productName: neo-vault
 directories:
   buildResources: build
 files:
+  - '!runtime/**'
+  - '!scripts/**'
   - '!data/**'
   - '!work/**'
   - '!tests/**'
@@ -14,6 +16,9 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+extraFiles:
+  - from: runtime/retroarch
+    to: runtime/retroarch
 win:
   executableName: neo-vault
 nsis:

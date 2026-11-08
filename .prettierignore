@@ -4,3 +4,7 @@ pnpm-lock.yaml
 LICENSE.md
 tsconfig.json
 tsconfig.*.json
+/runtime/
+/data/
+/work/
+src/renderer/src/assets/media/*.json
