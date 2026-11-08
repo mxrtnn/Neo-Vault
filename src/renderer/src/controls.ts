@@ -19,3 +19,32 @@ export function gamepadAction(
 export function emitAction(action: VaultAction): void {
   window.dispatchEvent(new CustomEvent<VaultAction>('vault-action', { detail: action }))
 }
+
+// Require a neutral controller after focus/device changes to avoid accidental launches.
+export function createGamepadGate(): (
+  action: VaultAction | null,
+  time: number,
+  enabled: boolean
+) => VaultAction | null {
+  let armed = false
+  let last: VaultAction | null = null
+  let nextRepeat = 0
+  return (action, time, enabled) => {
+    if (!enabled) {
+      armed = false
+      last = null
+      return null
+    }
+    if (!action) {
+      armed = true
+      last = null
+      return null
+    }
+    if (!armed) return null
+    const repeat = ['up', 'down', 'left', 'right', 'previous', 'next'].includes(action)
+    const send = action !== last || (repeat && time >= nextRepeat)
+    if (send) nextRepeat = time + (action === last ? 160 : 380)
+    last = action
+    return send ? action : null
+  }
+}

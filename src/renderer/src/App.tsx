@@ -1,4 +1,5 @@
 import EmulationSettings from './components/EmulationSettings'
+import { toggleFavorite, type Vault } from './profiles'
 import { useEffect, useState } from 'react'
 import { useInputDevices, useVaultAction } from './hooks/useInputDevices'
 import GameLibrary from './components/GameLibrary'
@@ -14,8 +15,6 @@ import {
   Users
 } from 'lucide-react'
 
-type Profile = { id: string; name: string; favorites: string[] }
-type Vault = { profiles: Profile[]; active: string }
 const systems = [
   {
     id: 'snes',
@@ -178,19 +177,7 @@ export default function App(): React.JSX.Element {
       document.getElementById(`system-${system.id}`)?.scrollIntoView({ block: 'nearest' })
   }, [index, page, system.id])
   function favorite(id: string): void {
-    setVault((v) => ({
-      ...v,
-      profiles: v.profiles.map((p) =>
-        p.id === v.active
-          ? {
-              ...p,
-              favorites: p.favorites.includes(id)
-                ? p.favorites.filter((f) => f !== id)
-                : [...p.favorites, id]
-            }
-          : p
-      )
-    }))
+    setVault((v) => toggleFavorite(v, id))
   }
   return (
     <div className="vault-app">

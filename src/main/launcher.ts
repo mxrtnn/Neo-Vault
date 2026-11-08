@@ -144,6 +144,7 @@ export function registerLauncher(): void {
           message: `Windows no pudo iniciar ${engine}. Revisa la instalación y los requisitos.`
         })
         if (!window.isDestroyed()) {
+          if (window.isMinimized()) window.restore()
           window.show()
           window.focus()
         }
@@ -161,6 +162,7 @@ export function registerLauncher(): void {
               : `${engine} terminó con un error (${code}). ${stderr}`
         })
         if (!window.isDestroyed()) {
+          if (window.isMinimized()) window.restore()
           window.show()
           window.focus()
         }

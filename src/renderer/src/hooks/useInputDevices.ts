@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { emitAction, gamepadAction, type VaultAction } from '../controls'
+import { createGamepadGate, emitAction, gamepadAction, type VaultAction } from '../controls'
 export type InputStatus = { name: string; standard: boolean; lastAction: string }
 export function useInputDevices(): InputStatus {
   const [status, setStatus] = useState<InputStatus>({
@@ -45,8 +45,10 @@ export function useInputDevices(): InputStatus {
     }
     let frame = 0
     let signature = ''
-    let last: VaultAction | null = null
-    let nextRepeat = 0
+    let gate = createGamepadGate()
+    const disarm = (): void => {
+      gate = createGamepadGate()
+    }
     const poll = (time: number): void => {
       try {
         const pads = Array.from(navigator.getGamepads?.() ?? []).filter(
@@ -56,31 +58,29 @@ export function useInputDevices(): InputStatus {
         const nextSignature = pad ? `${pad.index}:${pad.id}:${pad.mapping}` : ''
         if (signature !== nextSignature) {
           signature = nextSignature
-          last = null
+          disarm()
           setStatus((s) => ({ ...s, name: pad?.id ?? '', standard: pad?.mapping === 'standard' }))
         }
         const action = pad ? gamepadAction(pad) : null
         const typing = document.activeElement?.closest(
           'input,textarea,select,[contenteditable="true"]'
         )
-        if (action && document.hasFocus() && !typing) {
-          const repeat = ['up', 'down', 'left', 'right', 'previous', 'next'].includes(action)
-          if (action !== last || (repeat && time >= nextRepeat)) {
-            nextRepeat = time + (action === last ? 160 : 380)
-            setStatus((s) => ({ ...s, lastAction: `Mando: ${action}` }))
-            emitAction(action)
-          }
+        const accepted = gate(action, time, document.hasFocus() && !typing)
+        if (accepted) {
+          setStatus((s) => ({ ...s, lastAction: `Mando: ${accepted}` }))
+          emitAction(accepted)
         }
-        last = action
       } catch {
         /* Keyboard stays available when Gamepad API is unavailable. */
       }
       frame = requestAnimationFrame(poll)
     }
     window.addEventListener('keydown', keyboard)
+    window.addEventListener('blur', disarm)
     frame = requestAnimationFrame(poll)
     return () => {
       window.removeEventListener('keydown', keyboard)
+      window.removeEventListener('blur', disarm)
       cancelAnimationFrame(frame)
     }
   }, [])

@@ -267,6 +267,7 @@ export default function GameLibrary({
     }
   }
   useVaultAction((action) => {
+    if (busy || running) return
     if (action === 'back') {
       if (notice) setNotice('')
       else onBack()

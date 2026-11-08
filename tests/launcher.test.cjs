@@ -50,6 +50,11 @@ test('launcher persists choices, handles cancellation, launches without shell an
   const notices = []
   const window = {
     isDestroyed: () => false,
+    minimized: true,
+    isMinimized: () => window.minimized,
+    restore: () => {
+      window.minimized = false
+    },
     hide: () => {
       window.hidden = true
     },
@@ -132,6 +137,7 @@ test('launcher persists choices, handles cancellation, launches without shell an
   await fs.writeFile(firstSave, 'existing save')
   child.emit('close', 0)
   assert.equal(window.hidden, false)
+  assert.equal(window.minimized, false)
   assert.equal(notices.at(-1).status, 'stopped')
   assert.equal((await invoke('launch', 'nes', 'Demo con espacios', 'player-2')).ok, true)
   assert.notEqual(firstConfig, spawned.args[1])
