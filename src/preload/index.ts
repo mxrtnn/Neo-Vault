@@ -4,6 +4,10 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const launcher: LauncherAPI = {
+  chooseMame: () => ipcRenderer.invoke('launcher:mame'),
+  importArcadeFolder: () => ipcRenderer.invoke('launcher:arcade-folder'),
+  auditArcade: (title) => ipcRenderer.invoke('launcher:arcade-audit', title),
+  openArcadeSource: (title) => ipcRenderer.invoke('launcher:arcade-source', title),
   getConfig: () => ipcRenderer.invoke('launcher:config'),
   chooseRetroarch: () => ipcRenderer.invoke('launcher:retroarch'),
   chooseCore: (system) => ipcRenderer.invoke('launcher:core', system),

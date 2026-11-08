@@ -44,8 +44,9 @@ export default function GameArtwork({
       if (manifest) setCandidates(resolveMedia(manifest, game, preferred))
       else {
         const repository =
-          catalogSources[systemId]?.name.replaceAll(' ', '_') ??
-          (systemId === 'arcade' ? 'MAME' : '')
+          systemId === 'arcade'
+            ? 'MAME'
+            : (catalogSources[systemId]?.name.replaceAll(' ', '_') ?? '')
         const name = cleanMediaName(game)
         const folders = { box: 'Named_Boxarts', snap: 'Named_Snaps', title: 'Named_Titles' }
         setCandidates(

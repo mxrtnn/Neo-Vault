@@ -1,3 +1,5 @@
+import { registerArcade, prepareArcadeLaunch } from './arcade'
+import { arcadeFileTitle } from './arcadePlan'
 import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { spawn } from 'node:child_process'
 import { mkdir, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises'
@@ -35,6 +37,11 @@ export function registerLauncher(): void {
       )
     return {
       ...config,
+      mamePath:
+        config.mamePath ||
+        ((await exists(join(projectRoot, 'runtime', 'mame', 'mame.exe')))
+          ? join(projectRoot, 'runtime', 'mame', 'mame.exe')
+          : ''),
       retroarchPath: config.retroarchPath || ((await exists(executable)) ? executable : ''),
       cores: {
         ...config.cores,
@@ -47,6 +54,10 @@ export function registerLauncher(): void {
     try {
       const data = JSON.parse(await readFile(configFile, 'utf8')) as LauncherConfig
       if (
+        (data.mamePath !== undefined && typeof data.mamePath !== 'string') ||
+        (data.arcadeRomPaths !== undefined &&
+          (!Array.isArray(data.arcadeRomPaths) ||
+            !data.arcadeRomPaths.every((path) => typeof path === 'string'))) ||
         typeof data.retroarchPath !== 'string' ||
         !data.cores ||
         !data.bindings ||
@@ -95,6 +106,74 @@ export function registerLauncher(): void {
   function notify(window: BrowserWindow, event: LauncherEvent): void {
     if (!window.isDestroyed()) window.webContents.send('launcher:event', event)
   }
+  function startProcess(
+    window: BrowserWindow,
+    executable: string,
+    args: string[],
+    cwd: string,
+    title: string,
+    engine: string
+  ): Promise<LauncherResult> {
+    return new Promise((resolveResult) => {
+      const child = spawn(executable, args, {
+        shell: false,
+        cwd,
+        stdio: ['ignore', 'ignore', 'pipe']
+      })
+      let stderr = ''
+      let started = false
+      child.stderr?.on('data', (data) => {
+        stderr = (stderr + String(data)).slice(-1500)
+      })
+      child.once('spawn', () => {
+        started = true
+        running = true
+        pending = false
+        notify(window, { status: 'running', message: `Jugando: ${title}` })
+        if (!window.isDestroyed()) window.hide()
+        resolveResult({
+          ok: true,
+          message: `${engine} iniciado. Presiona Esc o cierra su ventana para volver a Neo-Vault.`
+        })
+      })
+      child.once('error', () => {
+        pending = false
+        running = false
+        notify(window, {
+          status: 'error',
+          message: `Windows no pudo iniciar ${engine}. Revisa la instalación y los requisitos.`
+        })
+        if (!window.isDestroyed()) {
+          window.show()
+          window.focus()
+        }
+        resolveResult({ ok: false, message: `No se pudo iniciar ${engine}.` })
+      })
+      child.once('close', (code) => {
+        running = false
+        pending = false
+        if (!started) return
+        notify(window, {
+          status: code === 0 ? 'stopped' : 'error',
+          message:
+            code === 0
+              ? 'Partida finalizada. Los archivos guardados permanecen en la carpeta del perfil.'
+              : `${engine} terminó con un error (${code}). ${stderr}`
+        })
+        if (!window.isDestroyed()) {
+          window.show()
+          window.focus()
+        }
+      })
+    })
+  }
+  const isAuditing = registerArcade({
+    projectRoot,
+    load,
+    update,
+    windowFor,
+    isBusy: () => pending || running
+  })
   ipcMain.handle('launcher:config', async (event) => {
     windowFor(event)
     await queue.catch(() => {})
@@ -116,6 +195,8 @@ export function registerLauncher(): void {
   ipcMain.handle('launcher:core', async (event, system: PlayableSystem) => {
     const window = windowFor(event)
     validateSelection(system, 'core')
+    if (system === 'arcade')
+      throw new Error('MAME utiliza su propio ejecutable, no un núcleo RetroArch.')
     const selection = await dialog.showOpenDialog(window, {
       title: `Selecciona ${coreNames[system]}`,
       properties: ['openFile'],
@@ -138,6 +219,8 @@ export function registerLauncher(): void {
     if (selection.canceled) return null
     const file = await fileExists(selection.filePaths[0])
     validateGamePath(system, file)
+    if (system === 'arcade' && arcadeFileTitle(file) !== title)
+      throw new Error('Este ZIP pertenece a otro set; usa Añadir carpeta para identificarlo.')
     return update((c) => ({ ...c, bindings: { ...c.bindings, [bindingKey(system, title)]: file } }))
   })
   ipcMain.handle('launcher:import', async (event, system: PlayableSystem) => {
@@ -151,7 +234,8 @@ export function registerLauncher(): void {
     if (selection.canceled) return null
     const file = await fileExists(selection.filePaths[0])
     validateGamePath(system, file)
-    const title = basename(file).replace(/\.(nes|sfc|smc)$/i, '')
+    const title =
+      system === 'arcade' ? arcadeFileTitle(file) : basename(file).replace(/\.(nes|sfc|smc)$/i, '')
     validateSelection(system, title)
     const config = await update((c) => ({
       ...c,
@@ -168,11 +252,22 @@ export function registerLauncher(): void {
       profileId: string
     ): Promise<LauncherResult> => {
       const window = windowFor(event)
-      if (pending || running)
+      if (pending || running || isAuditing())
         return { ok: false, message: 'Ya hay un juego iniciándose o en ejecución.' }
       pending = true
       try {
         validateSelection(system, title)
+        if (system === 'arcade') {
+          const launch = await prepareArcadeLaunch({ projectRoot, load }, title, profileId)
+          return await startProcess(
+            window,
+            launch.executable,
+            launch.args,
+            launch.cwd,
+            title,
+            'MAME'
+          )
+        }
         const config = await load()
         const game = config.bindings[bindingKey(system, title)]
         const core = config.cores[system]
@@ -193,59 +288,14 @@ export function registerLauncher(): void {
         await mkdir(join(directory, 'states'), { recursive: true })
         const session = join(directory, 'retroarch.cfg')
         await writeFile(session, sessionConfig(directory, dirname(executable)), 'utf8')
-        return await new Promise<LauncherResult>((resolveResult) => {
-          const child = spawn(
-            executable,
-            ['--config', session, '--fullscreen', '-L', coreFile, gameFile],
-            { shell: false, cwd: dirname(executable), stdio: ['ignore', 'ignore', 'pipe'] }
-          )
-          let stderr = ''
-          let started = false
-          child.stderr?.on('data', (data) => {
-            stderr = (stderr + String(data)).slice(-1500)
-          })
-          child.once('spawn', () => {
-            started = true
-            running = true
-            pending = false
-            notify(window, { status: 'running', message: `Jugando: ${title}` })
-            if (!window.isDestroyed()) window.hide()
-            resolveResult({
-              ok: true,
-              message:
-                'RetroArch iniciado. Cierra RetroArch o presiona Esc para volver a Neo-Vault.'
-            })
-          })
-          child.once('error', () => {
-            pending = false
-            running = false
-            notify(window, {
-              status: 'error',
-              message: 'No se pudo ejecutar RetroArch. Comprueba la instalación y sus dependencias.'
-            })
-            if (!window.isDestroyed()) {
-              window.show()
-              window.focus()
-            }
-            resolveResult({ ok: false, message: 'No se pudo iniciar RetroArch.' })
-          })
-          child.once('close', (code) => {
-            running = false
-            pending = false
-            if (!started) return
-            notify(window, {
-              status: code === 0 ? 'stopped' : 'error',
-              message:
-                code === 0
-                  ? 'Partida finalizada. Tus guardados permanecen en la carpeta del perfil.'
-                  : `RetroArch terminó con un error (${code}). ${stderr}`
-            })
-            if (!window.isDestroyed()) {
-              window.show()
-              window.focus()
-            }
-          })
-        })
+        return await startProcess(
+          window,
+          executable,
+          ['--config', session, '--fullscreen', '-L', coreFile, gameFile],
+          dirname(executable),
+          title,
+          'RetroArch'
+        )
       } catch (error) {
         pending = false
         return {

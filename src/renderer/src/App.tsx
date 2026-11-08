@@ -388,7 +388,7 @@ export default function App(): React.JSX.Element {
             </div>
           </form>
           <p className="subtle">
-            La integración NES/SNES utiliza carpetas de guardado separadas por perfil. Los favoritos
+            NES, SNES y MAME utilizan carpetas de guardado separadas por perfil. Los favoritos
             también son independientes.
           </p>
         </main>
@@ -424,7 +424,7 @@ export default function App(): React.JSX.Element {
             <h2>Preparando tu colección</h2>
             <p>
               Puedes conectar RetroArch para NES y SNES arriba. El catálogo de las demás consolas es
-              de referencia; MAME conserva títulos de muestra.
+              de referencia. MAME dispone de un catálogo local de la versión 0.289.
             </p>
             <p>
               Los favoritos se guardan automáticamente por perfil en este equipo. La estética está
@@ -434,7 +434,7 @@ export default function App(): React.JSX.Element {
             <p>
               Listas de Libretro basadas en No-Intro y Redump, con regiones y revisiones. No se
               garantiza que contengan todos los juegos existentes. No incluyen archivos de juegos.
-              MAME permanece como selección de muestra.
+              El catálogo MAME 0.289 se incluye como metadatos locales; no incluye ROMs.
             </p>
             <h3>Créditos de imágenes</h3>
             <p>

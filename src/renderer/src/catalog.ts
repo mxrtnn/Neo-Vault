@@ -1,5 +1,6 @@
 export type CatalogSource = { folder: string; name: string }
 export const catalogSources: Record<string, CatalogSource> = {
+  arcade: { folder: 'mame', name: 'MAME 0.289' },
   snes: { folder: 'no-intro', name: 'Nintendo - Super Nintendo Entertainment System' },
   n64: { folder: 'no-intro', name: 'Nintendo - Nintendo 64' },
   nds: { folder: 'no-intro', name: 'Nintendo - Nintendo DS' },
@@ -19,6 +20,10 @@ export function parseCatalog(text: string): string[] {
   ].sort((a, b) => a.localeCompare(b))
 }
 export async function fetchCatalog(id: string, signal: AbortSignal): Promise<string[]> {
+  if (id === 'arcade') {
+    const { arcadeGames } = await import('../../shared/arcade')
+    return arcadeGames.map((game) => game.title)
+  }
   const source = catalogSources[id]
   if (!source) throw new Error('Este sistema aún no tiene un proveedor de catálogo conectado.')
   const url = `https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/${source.folder}/${encodeURIComponent(source.name)}.dat`

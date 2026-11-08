@@ -10,8 +10,15 @@ function load(file, replacements = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText
   const module = { exports: {} }
-  const localRequire = (name) =>
-    Object.hasOwn(replacements, name) ? replacements[name] : require(name)
+  const localRequire = (name) => {
+    if (Object.hasOwn(replacements, name)) return replacements[name]
+    if (name.startsWith('.'))
+      return require('./load-source.cjs').loadSource(
+        path.resolve(path.dirname(file), name) + '.ts',
+        replacements
+      )
+    return require(name)
+  }
   new Function('require', 'module', 'exports', '__dirname', code)(
     localRequire,
     module,
@@ -146,6 +153,16 @@ test('launcher persists choices, handles cancellation, launches without shell an
   const detected = await invoke('config')
   assert.equal(detected.retroarchPath, path.join(included, 'retroarch.exe'))
   assert.equal(detected.cores.snes, path.join(included, 'cores', 'snes9x_libretro.dll'))
+  const mameRoot = path.join(root, 'runtime', 'mame')
+  await fs.mkdir(mameRoot, { recursive: true })
+  await fs.writeFile(path.join(mameRoot, 'mame.exe'), 'fixture')
+  assert.equal((await invoke('config')).mamePath, path.join(mameRoot, 'mame.exe'))
+  failSpawn = false
+  assert.equal((await invoke('launch', 'arcade', 'Pong (Rev E)', 'player-1')).ok, true)
+  assert.equal(spawned.args[0], 'pong')
+  assert.ok(spawned.args.includes('-nvram_directory'))
+  child.emit('close', 0)
+  assert.equal(window.hidden, false)
   await fs.writeFile(configFile, '{invalid')
   nextFile = path.join(root, 'fceumm_libretro.dll')
   await assert.rejects(invoke('core', 'nes'))

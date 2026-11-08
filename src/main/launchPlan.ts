@@ -1,20 +1,21 @@
 import { createHash } from 'node:crypto'
 import { extname, join } from 'node:path'
-import type { PlayableSystem } from '../shared/launcher'
-export const coreNames: Record<PlayableSystem, string> = {
+import type { PlayableSystem, RetroSystem } from '../shared/launcher'
+export const coreNames: Record<RetroSystem, string> = {
   nes: 'fceumm_libretro.dll',
   snes: 'snes9x_libretro.dll'
 }
 export const gameExtensions: Record<PlayableSystem, string[]> = {
   nes: ['nes'],
-  snes: ['sfc', 'smc']
+  snes: ['sfc', 'smc'],
+  arcade: ['zip', '7z']
 }
 export function validateSelection(
   system: unknown,
   title: unknown
 ): asserts system is PlayableSystem {
-  if (system !== 'nes' && system !== 'snes')
-    throw new Error('La primera integración admite NES y SNES.')
+  if (system !== 'nes' && system !== 'snes' && system !== 'arcade')
+    throw new Error('Los sistemas ejecutables son NES, SNES y MAME.')
   if (typeof title !== 'string' || !title.trim() || title.length > 512 || /[\0\r\n]/.test(title))
     throw new Error('Título de juego no válido.')
 }

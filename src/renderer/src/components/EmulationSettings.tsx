@@ -22,6 +22,12 @@ export default function EmulationSettings(): React.JSX.Element {
   }
   const rows = [
     {
+      label: 'Arcade · MAME 0.289',
+      file: config?.mamePath,
+      action: () => window.api.launcher.chooseMame(),
+      hint: 'Incluido en runtime/mame. Requiere Windows 10+ y CPU x86-64-v2. Preparar desde la terminal: npm run setup:mame. Pong se puede ejecutar sin ROMs externas.'
+    },
+    {
       label: '1. RetroArch para Windows',
       file: config?.retroarchPath,
       action: () => window.api.launcher.chooseRetroarch(),
@@ -43,7 +49,7 @@ export default function EmulationSettings(): React.JSX.Element {
   return (
     <section className="settings-panel emulation-settings">
       <span className="eyebrow">PRIMERA INTEGRACIÓN / WINDOWS</span>
-      <h2>Conecta tu emulación</h2>
+      <h2>Emuladores incluidos</h2>
       <p>
         SNES incluido: Neo-Vault detecta automáticamente runtime/retroarch. Para preparar otra copia
         del proyecto ejecuta npm run setup:snes desde su terminal.

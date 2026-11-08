@@ -17,8 +17,8 @@ files:
 asarUnpack:
   - resources/**
 extraFiles:
-  - from: runtime/retroarch
-    to: runtime/retroarch
+  - from: runtime
+    to: runtime
 win:
   executableName: neo-vault
 nsis:

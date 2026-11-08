@@ -3,7 +3,7 @@ A desktop launcher for retro collections, inspired by HyperSpin and developed wi
 
 El objetivo es convertir una biblioteca local en una experiencia cómoda para jugar desde una ventana, una pantalla completa o un equipo dedicado. Neo-Vault se encarga de la presentación y la organización; la ejecución de los juegos se delegará en emuladores externos.
 
-> Proyecto en desarrollo. Actualmente se puede explorar el catálogo y gestionar perfiles y favoritos. Existe una primera integración de lanzamiento para NES y SNES con RetroArch externo. Requiere instalar RetroArch, seleccionar el núcleo y aportar un archivo local; la prueba con emulación real está pendiente.
+> Proyecto en desarrollo. Se pueden explorar catálogos y gestionar perfiles y favoritos. NES/SNES utilizan RetroArch y arcade utiliza MAME 0.289. La prueba real de Pong sin ROM externa terminó correctamente sin video ni audio; las pruebas visuales y de mando físico siguen pendientes.
 
 ## Propósito
 
@@ -24,6 +24,8 @@ El objetivo es convertir una biblioteca local en una experiencia cómoda para ju
 - Búsqueda de títulos y filtros de favoritos y archivos locales.
 - Importación y asociación de archivos NES (.nes) y SNES (.sfc/.smc).
 - Instalación de RetroArch y Snes9x dentro de runtime/retroarch mediante npm run setup:snes, con detección automática.
+- Instalación de MAME 0.289 en runtime/mame y catálogo arcade local desde sus metadatos oficiales.
+- Importación de carpetas arcade, auditoría individual o de colección y prueba de Pong sin ROM externa.
 - Configuración manual opcional de RetroArch y núcleos FCEUmm / Snes9x.
 - Lanzamiento externo sin shell, control de errores y retorno a Neo-Vault al terminar.
 - Preparación de carpetas de guardado por perfil, sistema y título para la integración NES/SNES.
@@ -49,7 +51,7 @@ La compatibilidad con mandos físicos requiere pruebas en cada dispositivo. Wind
 | PlayStation 1 | En línea |
 | Nintendo NES | En línea |
 | Game Boy | En línea |
-| MAME / Arcade | Selección de muestra |
+| MAME / Arcade | Catálogo local MAME 0.289 |
 
 La presencia de una consola en esta tabla no implica que su emulador esté instalado o integrado. Las listas pueden incluir regiones, revisiones y otras variantes; no se garantiza un catálogo exhaustivo.
 
@@ -60,7 +62,7 @@ La presencia de una consola en esta tabla no implica que su emulador esté insta
 - Validar partidas y estados con juegos reales; integrar memory cards y guardados del resto de sistemas.
 - Copias de seguridad y restauración de datos.
 - Configuración de mandos con mapeos no estándar.
-- Catálogo completo de referencia para arcade.
+- Ampliar filtros y mantener el catálogo arcade por versión de MAME.
 - Videos y recursos cinematográficos por sistema o juego.
 - Empaquetado y validación de una distribución para Windows.
 - Pruebas con diferentes resoluciones, equipos y mandos físicos.
@@ -72,21 +74,44 @@ La presencia de una consola en esta tabla no implica que su emulador esté insta
 - No distribuye ROMs, ISOs, BIOS ni bibliotecas comerciales de juegos.
 - Consultar un título no significa que esté instalado o disponible para jugar.
 - No tiene cuentas en línea, sincronización en la nube ni recuperación automática de partidas.
-- La integración ejecutable inicial se limita a NES y SNES; no equivale a compatibilidad validada con todas las consolas.
+- La integración ejecutable inicial incluye NES, SNES y MAME; no equivale a compatibilidad validada con todas las consolas.
 
 ## Propuesta de emulación
 
-La primera integración utiliza **RetroArch con núcleos Libretro instalados de forma selectiva**. El lanzamiento y la preparación de guardados están implementados para NES con FCEUmm y SNES con Snes9x. Falta validar la ejecución con emuladores y juegos reales.
+NES y SNES utilizan **RetroArch con núcleos Libretro instalados de forma selectiva**. Arcade utiliza **MAME 0.289** como proceso independiente. Se implementaron lanzamiento, auditoría arcade y rutas de guardado por perfil. La primera prueba real de Pong terminó correctamente sin video ni audio; falta la validación interactiva.
 
 Neo-Vault inicia un proceso externo de RetroArch indicando el núcleo, el archivo del juego y una configuración por perfil. El launcher se oculta al iniciar el proceso y vuelve a mostrarse cuando termina o falla. Cada perfil, sistema y título recibe directorios propios para partidas y estados. La carga y el guardado automáticos de estados están desactivados; el usuario gestiona sus estados desde RetroArch.
 
-La primera prueba se centrará en NES o SNES con un juego homebrew autorizado. El resto de sistemas se añadirá tras validar lanzamiento, controles, salida y persistencia de partidas.
+La primera prueba disponible sin archivos externos es Pong en MAME. NES y SNES se validarán después con un juego homebrew autorizado. El resto de sistemas se añadirá tras validar lanzamiento, controles, salida y persistencia de partidas.
 
 Se busca limitar el tamaño de la distribución y evitar componentes innecesarios. No hay todavía mediciones que permitan afirmar un consumo mínimo de RAM, un tamaño final o requisitos de hardware definitivos. Electron aporta su propio coste de ejecución.
 
 Los emuladores, núcleos y recursos externos conservan sus licencias respectivas. La selección final de componentes redistribuibles se revisará antes de preparar un paquete público.
 
 Referencias: [RetroArch](https://www.retroarch.com/platforms.html), [lanzamiento por línea de comandos](https://docs.libretro.com/guides/cli-intro/), [instalación de núcleos](https://docs.libretro.com/guides/download-cores/) y [licencias](https://docs.libretro.com/development/licenses/).
+
+## Primera prueba arcade: MAME
+
+```bash
+npm run setup:mame
+npm run dev
+```
+
+El script descarga MAME 0.289 para Windows x64 y prepara `runtime/mame`. Requiere Windows 10 o posterior y CPU con x86-64-v2. La distribución comprimida pesa unos 84 MiB; los componentes seleccionados ocupan unos 306 MiB instalados. No se descargan ROMs. Los binarios y archivos personales quedan fuera de Git.
+
+1. Abre **MAME / Arcade** y pulsa **Probar Pong · sin ROM**. El driver simula circuitos discretos y no necesita archivos ROM externos.
+2. MAME abre su propia ventana; Neo-Vault se oculta y regresa cuando termina. Usa **Esc** para salir. Los controles habituales de crédito e inicio son **5** y **1**, cuando el juego los utiliza; **Tab** permite consultar o ajustar los controles de MAME. Pueden variar por juego.
+3. Para una colección existente, pulsa **Añadir carpeta**. Se examina la carpeta elegida y hasta tres niveles de subcarpetas, sin seguir enlaces simbólicos. Se reconocen nombres estándar `.zip` y `.7z`, como `gridlee.zip`, sin extraer ni copiar los archivos.
+4. Usa **Verificar set** o **Verificar colección**. La auditoría comprueba archivos faltantes y checksums; no descarga juegos. Antes de iniciar un título con ROM, Neo-Vault vuelve a verificar el set y sus dependencias.
+5. Algunos títulos tienen **Abrir fuente oficial**. El botón abre su página de MAMEdev: las condiciones se aceptan allí y el usuario descarga desde ese sitio. Después se añade la carpeta correspondiente. No se automatiza la aceptación de condiciones ni se redistribuyen esos archivos.
+
+El catálogo deriva del XML oficial de MAME 0.289 y contiene **19.224 entradas con entrada de monedas**, incluidas variantes y títulos con limitaciones. Se excluyen dispositivos, BIOS y máquinas mecánicas. No representa 19.224 juegos instalados ni una promesa de compatibilidad. Los drivers preliminares no se ofrecen para iniciar. Los sets y sus dependencias deben ser compatibles con esta versión.
+
+Configuración, NVRAM y estados se dirigen a `data/profiles/<perfil>/arcade/<titulo>/`, con un identificador estable por título. La disponibilidad de estados depende del driver; no se habilita su guardado automático.
+
+Se comprobó el ejecutable real con `-help` y una ejecución de Pong de dos segundos simulados, sin video ni audio, que terminó con código 0. Las pruebas automatizadas cubren identificación, importación de carpetas, auditoría, rutas por perfil y retorno al launcher. La respuesta visual, sonido y mandos físicos requieren pruebas interactivas.
+
+Fuentes: [MAME](https://www.mamedev.org/release.html), [descargas y condiciones](https://www.mamedev.org/roms/) y [driver de Pong](https://github.com/mamedev/mame/blob/mame0289/src/mame/atari/pong.cpp).
 
 ## Primera prueba jugable: NES / SNES
 
@@ -116,7 +141,7 @@ La carpeta `data/` contiene información local y guardados. Está excluida de Gi
 
 El proceso principal de Electron controla la ventana. El preload expone una API limitada para comunicarse con la interfaz. React gestiona selectores, perfiles, favoritos y catálogo.
 
-Los perfiles y favoritos se almacenan en `localStorage` del navegador integrado. Las rutas del ejecutable, núcleos y juegos asociados se almacenan en data/launcher.json. Los guardados de la integración NES/SNES se dirigen a data/profiles dentro de la carpeta del proyecto en desarrollo o junto al ejecutable empaquetado. Esta ubicación debe ser escribible. No se ha implementado una base de datos de partidas ni exportación de perfiles; conservar data por sí sola no restaura los perfiles de localStorage. Los catálogos descargados se conservan en memoria durante la sesión; las imágenes dependen de su proveedor y de la caché del navegador. La disponibilidad sin conexión de esos recursos no está garantizada.
+Los perfiles y favoritos se almacenan en `localStorage` del navegador integrado. Las rutas del ejecutable, núcleos y juegos asociados se almacenan en data/launcher.json. Los guardados de NES/SNES y los archivos de estado de MAME se dirigen a data/profiles dentro de la carpeta del proyecto en desarrollo o junto al ejecutable empaquetado. Esta ubicación debe ser escribible. No se ha implementado una base de datos de partidas ni exportación de perfiles; conservar data por sí sola no restaura los perfiles de localStorage. Los catálogos descargados se conservan en memoria durante la sesión; las imágenes dependen de su proveedor y de la caché del navegador. La disponibilidad sin conexión de esos recursos no está garantizada.
 
 ### Organización del código
 
@@ -164,7 +189,7 @@ npm run setup:snes
 npm run build:win
 ```
 
-El proyecto contiene la configuración y el script de empaquetado. La distribución final todavía debe probarse. El empaquetado copia runtime/retroarch junto al ejecutable mediante extraFiles; prepara esa carpeta antes de compilar el instalador. Los binarios se mantienen fuera de Git y se obtienen con el script. La licencia de RetroArch y la de Snes9x se conservan en runtime/retroarch/licenses, junto con un manifiesto de fuentes, versión y hashes. La versión de RetroArch está fijada; el núcleo se obtiene del canal nightly y su hash queda registrado. Los hashes locales son un registro de integridad, no una firma independiente del proveedor.
+El proyecto contiene la configuración y el script de empaquetado. La distribución final todavía debe probarse. El empaquetado copia los emuladores preparados en runtime/ junto al ejecutable mediante extraFiles; ejecuta setup:mame o setup:snes antes de compilar el instalador. Los binarios se mantienen fuera de Git y se obtienen con el script. La licencia de RetroArch y la de Snes9x se conservan en runtime/retroarch/licenses, junto con un manifiesto de fuentes, versión y hashes. La versión de RetroArch está fijada; el núcleo se obtiene del canal nightly y su hash queda registrado. Los hashes locales son un registro de integridad, no una firma independiente del proveedor.
 
 ## Controles
 
@@ -200,7 +225,7 @@ npm run media:sync -- --force
 npm run media:sync -- --snes --force
 ```
 
-La API de GitHub puede limitar solicitudes. Si una descarga de índice falla, no se reemplaza el archivo existente de ese sistema. Se incluyen índices para SNES, NES, N64, DS, Mega Drive, Atari 2600, PlayStation y Game Boy. MAME continúa con imágenes solicitadas por nombre como referencia provisional.
+La API de GitHub puede limitar solicitudes. Si una descarga de índice falla, no se reemplaza el archivo existente de ese sistema. Se incluyen índices para SNES, NES, N64, DS, Mega Drive, Atari 2600, PlayStation, Game Boy y MAME. La comprobación inicial arcade encontró referencias para 11.634 de 19.224 entradas; 7.590 muestran un reemplazo visual.
 
 En la comprobación inicial de SNES hubo coincidencias de recursos para 3.393 de 3.726 títulos y variantes; los 333 restantes no tenían coincidencia. No todos los juegos tienen todos los tipos de imágenes. Se prioriza la edición exacta; si se reutiliza una revisión o región del mismo título, se indica en la vista principal. Una ausencia o fallo de red muestra un icono de reemplazo.
 

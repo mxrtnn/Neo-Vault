@@ -1,4 +1,4 @@
-import type { PlayableSystem } from '../../../shared/launcher'
+import type { PlayableSystem, RetroSystem } from '../../../shared/launcher'
 import { useLauncher } from '../hooks/useLauncher'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ChevronDown, ChevronUp, Heart, Play, RefreshCw, Search } from 'lucide-react'
@@ -35,6 +35,17 @@ export default function GameLibrary({
   const { config, error: configError, setConfig } = useLauncher()
   const [busy, setBusy] = useState(false)
   const [running, setRunning] = useState(false)
+  const [arcade, setArcade] = useState<typeof import('../../../shared/arcade') | null>(null)
+  useEffect(() => {
+    if (system.id !== 'arcade') return
+    let active = true
+    import('../../../shared/arcade').then((module) => {
+      if (active) setArcade(module)
+    })
+    return () => {
+      active = false
+    }
+  }, [system.id])
   const wheelTime = useRef(0)
   useEffect(
     () =>
@@ -103,9 +114,13 @@ export default function GameLibrary({
         (game) =>
           game.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
           (!onlyFavorites || favorites.includes(`${system.id}:${game}`)) &&
-          (!onlyLocal || !!config?.bindings[`${system.id}:${game}`])
+          (!onlyLocal ||
+            !!config?.bindings[`${system.id}:${game}`] ||
+            (system.id === 'arcade' &&
+              !!config?.mamePath &&
+              !!arcade?.arcadeByTitle.get(game)?.romless))
       ),
-    [combinedGames, query, onlyFavorites, onlyLocal, config, favorites, system.id]
+    [combinedGames, query, onlyFavorites, onlyLocal, config, favorites, system.id, arcade]
   )
   const current = Math.max(0, Math.min(selectedIndex, filtered.length - 1))
   const selected = filtered[current]
@@ -121,12 +136,26 @@ export default function GameLibrary({
     setSelectedIndex(length ? (((current + delta) % length) + length) % length : 0)
     setNotice('')
   }
-  const playable = system.id === 'nes' || system.id === 'snes'
+  const playable = system.id === 'nes' || system.id === 'snes' || system.id === 'arcade'
+  const arcadeGame = system.id === 'arcade' ? arcade?.arcadeByTitle.get(selected) : undefined
+  const officialPage = arcadeGame ? arcade?.officialArcadePages[arcadeGame.id] : undefined
   const bound = selected ? config?.bindings[`${system.id}:${selected}`] : undefined
   async function importLocal(): Promise<void> {
     if (!playable || busy || running) return
     setBusy(true)
     try {
+      if (system.id === 'arcade') {
+        const result = await window.api.launcher.importArcadeFolder()
+        if (result) {
+          setConfig(result.config)
+          setOnlyLocal(true)
+          setQuery('')
+          setOnlyFavorites(false)
+          setSelectedIndex(0)
+          setNotice(result.message)
+        }
+        return
+      }
       const imported = await window.api.launcher.importGame(system.id as PlayableSystem)
       if (imported) {
         setConfig(imported.config)
@@ -165,7 +194,7 @@ export default function GameLibrary({
     if (!game || busy || running) return
     if (!playable) {
       setNotice(
-        'La primera integración admite NES y SNES. Esta consola se conectará en una próxima etapa.'
+        'Por ahora se pueden ejecutar NES, SNES y MAME. Esta consola se conectará en una próxima etapa.'
       )
       return
     }
@@ -174,11 +203,31 @@ export default function GameLibrary({
       return
     }
     const systemId = system.id as PlayableSystem
-    if (!config.retroarchPath || !config.cores[systemId]) {
+    if (systemId === 'arcade') {
+      if (!config.mamePath) {
+        setNotice('Prepara el emulador con npm run setup:mame y reinicia Neo-Vault.')
+        return
+      }
+      const entry = arcade?.arcadeByTitle.get(game)
+      if (!entry) {
+        setNotice('Cargando información del catálogo MAME…')
+        return
+      }
+      if (!entry.romless && !config.bindings[`arcade:${game}`]) {
+        if (arcade?.officialArcadePages[entry.id]) {
+          await sourcePage(game)
+          return
+        }
+        setNotice(
+          'Este título necesita sus archivos. Usa Añadir carpeta para detectar tu colección de una vez.'
+        )
+        return
+      }
+    } else if (!config.retroarchPath || !config.cores[systemId as RetroSystem]) {
       setNotice('Abre Configuración y selecciona RetroArch y el núcleo de esta consola.')
       return
     }
-    if (!config.bindings[`${system.id}:${game}`]) {
+    if (systemId !== 'arcade' && !config.bindings[`${system.id}:${game}`]) {
       await associate(game)
       return
     }
@@ -188,6 +237,31 @@ export default function GameLibrary({
       setNotice(result.message)
     } catch {
       setNotice('No se pudo comunicar con el lanzador. Reinicia Neo-Vault y vuelve a intentar.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function sourcePage(game = selected): Promise<void> {
+    if (!game || busy || running) return
+    setBusy(true)
+    try {
+      setNotice((await window.api.launcher.openArcadeSource(game)).message)
+    } catch {
+      setNotice('No se pudo abrir la fuente oficial.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function audit(all = false): Promise<void> {
+    if ((!selected && !all) || busy || running) return
+    setBusy(true)
+    setNotice(
+      all ? 'Verificando la colección detectada…' : 'Verificando el set y sus dependencias…'
+    )
+    try {
+      setNotice((await window.api.launcher.auditArcade(all ? undefined : selected)).message)
+    } catch {
+      setNotice('No se pudo realizar la auditoría.')
     } finally {
       setBusy(false)
     }
@@ -212,13 +286,39 @@ export default function GameLibrary({
         </button>
         <span className="subtle">
           {status === 'ready'
-            ? `${games.length.toLocaleString('es')} títulos y variantes · Libretro`
+            ? `${games.length.toLocaleString('es')} títulos y variantes · ${system.id === 'arcade' ? 'MAME 0.289' : 'Libretro'}`
             : status === 'loading'
               ? 'Consultando catálogo…'
               : 'Selección de muestra'}
         </span>
       </div>
       <div className="library-toolbar">
+        {system.id === 'arcade' && (
+          <button
+            className="secondary filter-button"
+            disabled={busy || running || !config?.mamePath}
+            onClick={() => {
+              void audit(true)
+            }}
+          >
+            Verificar colección
+          </button>
+        )}
+        {system.id === 'arcade' && (
+          <button
+            className="secondary filter-button"
+            disabled={busy || running || !config || !arcade}
+            onClick={() => {
+              setQuery('Pong (Rev E)')
+              setSelectedIndex(0)
+              setOnlyLocal(false)
+              setOnlyFavorites(false)
+              void select('Pong (Rev E)')
+            }}
+          >
+            Probar Pong · sin ROM
+          </button>
+        )}
         {system.id === 'snes' && (
           <button
             className="secondary filter-button"
@@ -280,7 +380,7 @@ export default function GameLibrary({
                 setSelectedIndex(0)
               }}
             >
-              Archivos locales
+              {system.id === 'arcade' ? 'Mis juegos' : 'Archivos locales'}
             </button>
             <button
               className="secondary filter-button"
@@ -289,11 +389,17 @@ export default function GameLibrary({
                 void importLocal()
               }}
             >
-              Importar juego
+              {system.id === 'arcade' ? 'Añadir carpeta' : 'Importar juego'}
             </button>
           </>
         )}
       </div>
+      {system.id === 'arcade' && (
+        <p className="catalog-status">
+          5: crédito · 1: iniciar · Esc: volver · Tab: controles de MAME. Las fuentes oficiales
+          requieren aceptar sus condiciones en su propia web.
+        </p>
+      )}
       {status === 'error' && (
         <p className="catalog-status" role="status">
           {error} Se conserva{' '}
@@ -313,11 +419,13 @@ export default function GameLibrary({
                 </span>
                 <h1 title={selected}>{selected}</h1>
                 <p className="game-association" title={bound}>
-                  {bound
-                    ? 'ARCHIVO LOCAL ASOCIADO'
-                    : playable
-                      ? 'SIN ARCHIVO LOCAL'
-                      : 'EMULACIÓN PENDIENTE'}
+                  {arcadeGame?.romless
+                    ? 'NO NECESITA ROM EXTERNA'
+                    : bound
+                      ? 'ARCHIVO LOCAL ASOCIADO'
+                      : playable
+                        ? 'SIN ARCHIVO LOCAL'
+                        : 'EMULACIÓN PENDIENTE'}
                 </p>
                 <div className="game-actions">
                   <button
@@ -332,9 +440,11 @@ export default function GameLibrary({
                       ? 'PREPARANDO…'
                       : running
                         ? 'EN EJECUCIÓN'
-                        : bound
+                        : bound || arcadeGame?.romless
                           ? 'JUGAR'
-                          : 'SELECCIONAR JUEGO'}
+                          : officialPage
+                            ? 'VER DESCARGA OFICIAL'
+                            : 'SELECCIONAR JUEGO'}
                   </button>
                   <button
                     className="favorite-action"
@@ -345,7 +455,7 @@ export default function GameLibrary({
                     <Heart fill={saved ? 'currentColor' : 'none'} />
                   </button>
                 </div>
-                {playable && (
+                {playable && system.id !== 'arcade' && (
                   <button
                     className="associate-button"
                     disabled={busy || running}
@@ -357,6 +467,35 @@ export default function GameLibrary({
                       ? 'Cambiar archivo asociado'
                       : 'Asociar archivo local (.nes / .sfc / .smc)'}
                   </button>
+                )}
+                {system.id === 'arcade' && (
+                  <div className="arcade-actions">
+                    <button
+                      className="associate-button"
+                      disabled={busy || running || !config?.mamePath}
+                      onClick={() => {
+                        void audit()
+                      }}
+                    >
+                      Verificar set
+                    </button>
+                    {officialPage && (
+                      <button
+                        className="associate-button"
+                        disabled={busy || running}
+                        onClick={() => {
+                          void sourcePage()
+                        }}
+                      >
+                        Abrir fuente oficial
+                      </button>
+                    )}
+                    <span className="subtle">
+                      {arcadeGame
+                        ? `${arcadeGame.year} · ${arcadeGame.status === 'preliminary' ? 'Preliminar' : arcadeGame.status === 'imperfect' ? 'Emulación con limitaciones' : 'Driver operativo'}`
+                        : ''}
+                    </span>
+                  </div>
                 )}
               </div>
             </>

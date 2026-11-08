@@ -1429,3 +1429,44 @@ button:disabled {
     font-size: 11px;
   }
 }
+
+.arcade-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  min-height: 28px;
+}
+.arcade-actions .subtle {
+  font-size: 10px;
+}
+.arcade-actions .associate-button {
+  margin-top: 8px;
+}
+
+@media (max-height: 700px) {
+  .hyperspin-library {
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+  .hyperspin-library > .catalog-status {
+    display: none;
+  }
+  .game-description h1 {
+    height: 1.15em;
+    -webkit-line-clamp: 1;
+    margin: 5px 0;
+  }
+  .game-description > .eyebrow {
+    display: none;
+  }
+  .game-description .game-association {
+    margin-bottom: 5px;
+  }
+  .game-actions .primary {
+    padding: 8px;
+  }
+  .hyperspin-library .library-toolbar > .subtle {
+    display: none;
+  }
+}

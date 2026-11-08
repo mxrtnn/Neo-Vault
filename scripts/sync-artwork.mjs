@@ -1,6 +1,7 @@
 import { mkdir, writeFile, access } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 const sources = {
+  arcade: 'MAME',
   snes: 'Nintendo_-_Super_Nintendo_Entertainment_System',
   nes: 'Nintendo_-_Nintendo_Entertainment_System',
   n64: 'Nintendo_-_Nintendo_64',

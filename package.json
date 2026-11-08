@@ -6,6 +6,7 @@
   "author": "example.com",
   "homepage": "https://electron-vite.org",
   "scripts": {
+    "setup:mame": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-mame.ps1",
     "setup:snes": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-snes.ps1",
     "media:sync": "node scripts/sync-artwork.mjs",
     "test": "node --test tests/*.test.cjs",
