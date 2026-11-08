@@ -1,12 +1,6 @@
 # Neo-Vault
 A desktop launcher for retro collections, inspired by HyperSpin and developed with Electron, React, and TypeScript. It includes animated selectors, local profiles, favorites, and keyboard and gamepad navigation.
 
-# Neo-Vault
-
-**Tu colección retro, en una experiencia de consola.**
-
-Neo-Vault es un launcher de escritorio para organizar y explorar videojuegos retro desde una interfaz visual inspirada en HyperSpin: selectores animados, estética oscura con neón y navegación mediante teclado o mando.
-
 El objetivo es convertir una biblioteca local en una experiencia cómoda para jugar desde una ventana, una pantalla completa o un equipo dedicado. Neo-Vault se encarga de la presentación y la organización; la ejecución de los juegos se delegará en emuladores externos.
 
 > Proyecto en desarrollo. Actualmente se puede explorar el catálogo y gestionar perfiles y favoritos. Todavía no se pueden iniciar juegos desde Neo-Vault.
