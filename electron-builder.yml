@@ -3,6 +3,9 @@ productName: neo-vault
 directories:
   buildResources: build
 files:
+  - '!data/**'
+  - '!work/**'
+  - '!tests/**'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'

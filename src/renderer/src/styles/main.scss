@@ -1285,3 +1285,75 @@ button:disabled {
   height: calc(var(--wheel-row-height) - 16px);
   min-height: 0;
 }
+
+.runtime-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid #3d2a42;
+}
+.runtime-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.runtime-row h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+.runtime-row h3 svg {
+  color: #69d6ab;
+}
+.runtime-row p {
+  font-size: 12px;
+}
+.runtime-row code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #d4b4cf;
+  font-size: 11px;
+}
+.runtime-row .secondary {
+  display: flex;
+  width: auto;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.emulation-settings {
+  max-width: 850px;
+}
+.game-association {
+  color: #b39aba;
+  font-size: 9px;
+  letter-spacing: 1px;
+  margin: 0 0 8px;
+  height: 12px;
+}
+.associate-button {
+  color: #df9cb9;
+  font-size: 11px;
+  text-decoration: underline;
+  margin-top: 10px;
+  padding: 0;
+  min-height: 18px;
+}
+@media (max-height: 700px) {
+  .game-description h1 {
+    height: 2.3em;
+    -webkit-line-clamp: 2;
+  }
+  .associate-button {
+    margin-top: 6px;
+  }
+}

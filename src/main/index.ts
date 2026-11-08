@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { registerLauncher } from './launcher'
 import icon from '../../resources/icon.png?asset'
 
 function createWindow(): void {
@@ -79,6 +80,8 @@ app.whenReady().then(() => {
     window.setFullScreen(fullscreen)
     return window.isFullScreen()
   })
+
+  registerLauncher()
 
   // Comunicación IPC de prueba
   ipcMain.on('ping', () => console.log('pong'))

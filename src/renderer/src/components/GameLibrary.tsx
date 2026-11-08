@@ -1,3 +1,5 @@
+import type { PlayableSystem } from '../../../shared/launcher'
+import { useLauncher } from '../hooks/useLauncher'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ChevronDown, ChevronUp, Heart, Play, RefreshCw, Search } from 'lucide-react'
 import { catalogSources, fetchCatalog } from '../catalog'
@@ -5,6 +7,7 @@ import { useVaultAction } from '../hooks/useInputDevices'
 import GamePreview from './GamePreview'
 type Props = {
   system: { id: string; name: string; brand: string; mark: string; games: string[] }
+  profileId: string
   favorites: string[]
   onFavorite: (id: string) => void
   onBack: () => void
@@ -12,6 +15,7 @@ type Props = {
 const cache = new Map<string, string[]>()
 export default function GameLibrary({
   system,
+  profileId,
   favorites,
   onFavorite,
   onBack
@@ -25,8 +29,20 @@ export default function GameLibrary({
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [attempt, setAttempt] = useState(0)
   const [onlyFavorites, setOnlyFavorites] = useState(false)
+  const [onlyLocal, setOnlyLocal] = useState(false)
   const [notice, setNotice] = useState('')
+  const { config, error: configError, setConfig } = useLauncher()
+  const [busy, setBusy] = useState(false)
+  const [running, setRunning] = useState(false)
   const wheelTime = useRef(0)
+  useEffect(
+    () =>
+      window.api.launcher.onEvent((event) => {
+        setRunning(event.status === 'running')
+        setNotice(event.message)
+      }),
+    []
+  )
   const wheelRef = useRef<HTMLElement>(null)
   const [slotCount, setSlotCount] = useState(5)
   useEffect(() => {
@@ -69,14 +85,26 @@ export default function GameLibrary({
     observer.observe(wheel)
     return () => observer.disconnect()
   }, [])
+  const combinedGames = useMemo(
+    () => [
+      ...new Set([
+        ...games,
+        ...Object.keys(config?.bindings ?? {})
+          .filter((key) => key.startsWith(`${system.id}:`))
+          .map((key) => key.slice(system.id.length + 1))
+      ])
+    ],
+    [games, config, system.id]
+  )
   const filtered = useMemo(
     () =>
-      games.filter(
+      combinedGames.filter(
         (game) =>
           game.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
-          (!onlyFavorites || favorites.includes(`${system.id}:${game}`))
+          (!onlyFavorites || favorites.includes(`${system.id}:${game}`)) &&
+          (!onlyLocal || !!config?.bindings[`${system.id}:${game}`])
       ),
-    [games, query, onlyFavorites, favorites, system.id]
+    [combinedGames, query, onlyFavorites, onlyLocal, config, favorites, system.id]
   )
   const current = Math.max(0, Math.min(selectedIndex, filtered.length - 1))
   const selected = filtered[current]
@@ -87,15 +115,81 @@ export default function GameLibrary({
   const visible = filtered.slice(start, start + slotCount)
   const saved = !!selected && favorites.includes(`${system.id}:${selected}`)
   function move(delta: number): void {
+    if (busy || running) return
     const length = filtered.length
     setSelectedIndex(length ? (((current + delta) % length) + length) % length : 0)
     setNotice('')
   }
-  function select(game = selected): void {
-    if (game)
+  const playable = system.id === 'nes' || system.id === 'snes'
+  const bound = selected ? config?.bindings[`${system.id}:${selected}`] : undefined
+  async function importLocal(): Promise<void> {
+    if (!playable || busy || running) return
+    setBusy(true)
+    try {
+      const imported = await window.api.launcher.importGame(system.id as PlayableSystem)
+      if (imported) {
+        setConfig(imported.config)
+        setQuery(imported.title)
+        setOnlyLocal(true)
+        setOnlyFavorites(false)
+        setSelectedIndex(0)
+        setNotice(
+          'Juego importado. Selecciona RetroArch y el núcleo en Configuración si todavía no lo hiciste.'
+        )
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'No se pudo importar el juego.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function associate(game = selected): Promise<void> {
+    if (!game || !playable || busy || running) return
+    setBusy(true)
+    try {
+      const next = await window.api.launcher.chooseGame(system.id as PlayableSystem, game)
+      if (next) {
+        setConfig(next)
+        setNotice(
+          'Archivo asociado a este título. Ya puedes pulsar Jugar cuando RetroArch y el núcleo estén configurados.'
+        )
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'No se pudo asociar el archivo.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function select(game = selected): Promise<void> {
+    if (!game || busy || running) return
+    if (!playable) {
       setNotice(
-        'Este título aún no tiene un archivo y emulador asociados. Ya puedes probar la navegación y los favoritos con teclado o mando.'
+        'La primera integración admite NES y SNES. Esta consola se conectará en una próxima etapa.'
       )
+      return
+    }
+    if (configError || !config) {
+      setNotice(configError || 'Cargando configuración de emulación…')
+      return
+    }
+    const systemId = system.id as PlayableSystem
+    if (!config.retroarchPath || !config.cores[systemId]) {
+      setNotice('Abre Configuración y selecciona RetroArch y el núcleo de esta consola.')
+      return
+    }
+    if (!config.bindings[`${system.id}:${game}`]) {
+      await associate(game)
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await window.api.launcher.launch(systemId, game, profileId)
+      setNotice(result.message)
+    } catch {
+      setNotice('No se pudo comunicar con el lanzador. Reinicia Neo-Vault y vuelve a intentar.')
+    } finally {
+      setBusy(false)
+    }
   }
   useVaultAction((action) => {
     if (action === 'back') {
@@ -106,7 +200,7 @@ export default function GameLibrary({
     if (action === 'down' || action === 'right') move(1)
     if (action === 'previous') move(-10)
     if (action === 'next') move(10)
-    if (action === 'accept') select()
+    if (action === 'accept') void select()
     if (action === 'favorite' && selected) onFavorite(`${system.id}:${selected}`)
   })
   return (
@@ -162,6 +256,29 @@ export default function GameLibrary({
           </button>
         )}
         <span className="subtle">{filtered.length.toLocaleString('es')} resultados</span>
+        {playable && (
+          <>
+            <button
+              className={`secondary filter-button ${onlyLocal ? 'active' : ''}`}
+              aria-pressed={onlyLocal}
+              onClick={() => {
+                setOnlyLocal((v) => !v)
+                setSelectedIndex(0)
+              }}
+            >
+              Archivos locales
+            </button>
+            <button
+              className="secondary filter-button"
+              disabled={busy || running || !config}
+              onClick={() => {
+                void importLocal()
+              }}
+            >
+              Importar juego
+            </button>
+          </>
+        )}
       </div>
       {status === 'error' && (
         <p className="catalog-status" role="status">
@@ -181,10 +298,29 @@ export default function GameLibrary({
                   {system.mark} / {status === 'sample' ? 'MUESTRA' : 'CATÁLOGO DE REFERENCIA'}
                 </span>
                 <h1 title={selected}>{selected}</h1>
+                <p className="game-association" title={bound}>
+                  {bound
+                    ? 'ARCHIVO LOCAL ASOCIADO'
+                    : playable
+                      ? 'SIN ARCHIVO LOCAL'
+                      : 'EMULACIÓN PENDIENTE'}
+                </p>
                 <div className="game-actions">
-                  <button className="primary" onClick={() => select()}>
+                  <button
+                    className="primary"
+                    disabled={busy || running}
+                    onClick={() => {
+                      void select()
+                    }}
+                  >
                     <Play size={18} />
-                    SELECCIONAR JUEGO
+                    {busy
+                      ? 'PREPARANDO…'
+                      : running
+                        ? 'EN EJECUCIÓN'
+                        : bound
+                          ? 'JUGAR'
+                          : 'SELECCIONAR JUEGO'}
                   </button>
                   <button
                     className="favorite-action"
@@ -195,6 +331,19 @@ export default function GameLibrary({
                     <Heart fill={saved ? 'currentColor' : 'none'} />
                   </button>
                 </div>
+                {playable && (
+                  <button
+                    className="associate-button"
+                    disabled={busy || running}
+                    onClick={() => {
+                      void associate()
+                    }}
+                  >
+                    {bound
+                      ? 'Cambiar archivo asociado'
+                      : 'Asociar archivo local (.nes / .sfc / .smc)'}
+                  </button>
+                )}
               </div>
             </>
           ) : (
@@ -246,7 +395,9 @@ export default function GameLibrary({
                     setSelectedIndex(position)
                     setNotice('')
                   }}
-                  onDoubleClick={() => select(game)}
+                  onDoubleClick={() => {
+                    void select(game)
+                  }}
                 >
                   <span className="game-wheel-index">{String(position + 1).padStart(2, '0')}</span>
                   <span className="game-wheel-title" title={game}>

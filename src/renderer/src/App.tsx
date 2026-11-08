@@ -1,3 +1,4 @@
+import EmulationSettings from './components/EmulationSettings'
 import { useEffect, useState } from 'react'
 import { useInputDevices, useVaultAction } from './hooks/useInputDevices'
 import GameLibrary from './components/GameLibrary'
@@ -333,6 +334,7 @@ export default function App(): React.JSX.Element {
         <GameLibrary
           key={system.id}
           system={system}
+          profileId={profile.id}
           favorites={profile.favorites}
           onFavorite={favorite}
           onBack={() => setPage('consoles')}
@@ -386,7 +388,8 @@ export default function App(): React.JSX.Element {
             </div>
           </form>
           <p className="subtle">
-            Las partidas y los estados de guardado aún no están conectados a los perfiles.
+            La integración NES/SNES utiliza carpetas de guardado separadas por perfil. Los favoritos
+            también son independientes.
           </p>
         </main>
       )}
@@ -394,6 +397,7 @@ export default function App(): React.JSX.Element {
         <main className="content-page">
           <span className="eyebrow">CENTRO DE CONTROL</span>
           <h1>Configuración</h1>
+          <EmulationSettings />
           <div className="settings-panel">
             <Settings2 size={32} />
             <h2>Controles</h2>
@@ -419,12 +423,12 @@ export default function App(): React.JSX.Element {
             <p>Prueba de controles: {input.lastAction}</p>
             <h2>Preparando tu colección</h2>
             <p>
-              El siguiente paso es conectar las rutas de tus emuladores y juegos. El catálogo actual
-              es de muestra.
+              Puedes conectar RetroArch para NES y SNES arriba. El catálogo de las demás consolas es
+              de referencia; MAME conserva títulos de muestra.
             </p>
             <p>
-              Los favoritos se guardan automáticamente por perfil en este equipo. La integración con
-              HyperSpin y las partidas guardadas está pendiente.
+              Los favoritos se guardan automáticamente por perfil en este equipo. La estética está
+              inspirada en HyperSpin; su motor no forma parte de la aplicación.
             </p>
             <h3>Catálogo en línea</h3>
             <p>

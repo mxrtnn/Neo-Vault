@@ -1,8 +1,27 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { LauncherAPI, LauncherEvent } from '../shared/launcher'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
+const launcher: LauncherAPI = {
+  getConfig: () => ipcRenderer.invoke('launcher:config'),
+  chooseRetroarch: () => ipcRenderer.invoke('launcher:retroarch'),
+  chooseCore: (system) => ipcRenderer.invoke('launcher:core', system),
+  chooseGame: (system, title) => ipcRenderer.invoke('launcher:game', system, title),
+  importGame: (system) => ipcRenderer.invoke('launcher:import', system),
+  launch: (system, title, profileId) =>
+    ipcRenderer.invoke('launcher:launch', system, title, profileId),
+  onEvent: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, value: LauncherEvent): void =>
+      callback(value)
+    ipcRenderer.on('launcher:event', listener)
+    return () => {
+      ipcRenderer.removeListener('launcher:event', listener)
+    }
+  }
+}
 const api = {
+  launcher,
   getFullscreen: (): Promise<boolean> => ipcRenderer.invoke('window:get-fullscreen'),
   setFullscreen: (fullscreen: boolean): Promise<boolean> =>
     ipcRenderer.invoke('window:set-fullscreen', fullscreen),

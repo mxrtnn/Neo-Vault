@@ -3,7 +3,7 @@ A desktop launcher for retro collections, inspired by HyperSpin and developed wi
 
 El objetivo es convertir una biblioteca local en una experiencia cómoda para jugar desde una ventana, una pantalla completa o un equipo dedicado. Neo-Vault se encarga de la presentación y la organización; la ejecución de los juegos se delegará en emuladores externos.
 
-> Proyecto en desarrollo. Actualmente se puede explorar el catálogo y gestionar perfiles y favoritos. Todavía no se pueden iniciar juegos desde Neo-Vault.
+> Proyecto en desarrollo. Actualmente se puede explorar el catálogo y gestionar perfiles y favoritos. Existe una primera integración de lanzamiento para NES y SNES con RetroArch externo. Requiere instalar RetroArch, seleccionar el núcleo y aportar un archivo local; la prueba con emulación real está pendiente.
 
 ## Propósito
 
@@ -20,7 +20,11 @@ El objetivo es convertir una biblioteca local en una experiencia cómoda para ju
 - Selector de sistemas con imágenes remotas y un reemplazo visual cuando fallan.
 - Selector de juegos inspirado en HyperSpin, con transiciones y casillas de tamaño uniforme.
 - Vistas previas estáticas de juegos cuando existe una imagen coincidente; efectos visuales animados.
-- Búsqueda de títulos y filtro de favoritos.
+- Búsqueda de títulos y filtros de favoritos y archivos locales.
+- Importación y asociación de archivos NES (.nes) y SNES (.sfc/.smc).
+- Configuración de RetroArch y núcleos FCEUmm / Snes9x mediante selectores de archivos.
+- Lanzamiento externo sin shell, control de errores y retorno a Neo-Vault al terminar.
+- Preparación de carpetas de guardado por perfil, sistema y título para la integración NES/SNES.
 - Creación y selección de perfiles locales.
 - Favoritos persistentes por perfil mediante `localStorage`.
 - Modos ventana y pantalla completa, con botón y atajo F11.
@@ -49,9 +53,9 @@ La presencia de una consola en esta tabla no implica que su emulador esté insta
 
 ### Pendiente
 
-- Selección de rutas y detección de archivos de juegos instalados.
-- Integración y lanzamiento de emuladores.
-- Separación de partidas, memory cards y estados de guardado por perfil.
+- Escaneo de carpetas y detección automática de juegos instalados.
+- Validar la primera integración con RetroArch real y ampliar las consolas ejecutables.
+- Validar partidas y estados con juegos reales; integrar memory cards y guardados del resto de sistemas.
 - Copias de seguridad y restauración de datos.
 - Configuración de mandos con mapeos no estándar.
 - Catálogo completo de referencia para arcade.
@@ -66,13 +70,13 @@ La presencia de una consola en esta tabla no implica que su emulador esté insta
 - No distribuye ROMs, ISOs, BIOS ni bibliotecas comerciales de juegos.
 - Consultar un título no significa que esté instalado o disponible para jugar.
 - No tiene cuentas en línea, sincronización en la nube ni recuperación automática de partidas.
-- La interfaz actual no equivale a una integración terminada con emuladores.
+- La integración ejecutable inicial se limita a NES y SNES; no equivale a compatibilidad validada con todas las consolas.
 
 ## Propuesta de emulación
 
-La primera integración propuesta es **RetroArch con núcleos Libretro instalados de forma selectiva**. Esta integración todavía no está implementada.
+La primera integración utiliza **RetroArch con núcleos Libretro instalados de forma selectiva**. El lanzamiento y la preparación de guardados están implementados para NES con FCEUmm y SNES con Snes9x. Falta validar la ejecución con emuladores y juegos reales.
 
-Neo-Vault iniciaría un proceso externo de RetroArch indicando el núcleo y el archivo del juego. Después se incorporaría una configuración por perfil para separar los guardados, así como el retorno al launcher al cerrar la emulación.
+Neo-Vault inicia un proceso externo de RetroArch indicando el núcleo, el archivo del juego y una configuración por perfil. El launcher se oculta al iniciar el proceso y vuelve a mostrarse cuando termina o falla. Cada perfil, sistema y título recibe directorios propios para partidas y estados. La carga y el guardado automáticos de estados están desactivados; el usuario gestiona sus estados desde RetroArch.
 
 La primera prueba se centrará en NES o SNES con un juego homebrew autorizado. El resto de sistemas se añadirá tras validar lanzamiento, controles, salida y persistencia de partidas.
 
@@ -81,6 +85,19 @@ Se busca limitar el tamaño de la distribución y evitar componentes innecesario
 Los emuladores, núcleos y recursos externos conservan sus licencias respectivas. La selección final de componentes redistribuibles se revisará antes de preparar un paquete público.
 
 Referencias: [RetroArch](https://www.retroarch.com/platforms.html), [lanzamiento por línea de comandos](https://docs.libretro.com/guides/cli-intro/), [instalación de núcleos](https://docs.libretro.com/guides/download-cores/) y [licencias](https://docs.libretro.com/development/licenses/).
+
+## Primera prueba jugable: NES / SNES
+
+1. Descarga la versión oficial de escritorio de RetroArch para Windows y extráela en una ubicación escribible. Neo-Vault no la descarga ni instala automáticamente.
+2. En RetroArch, abre el descargador de núcleos e instala **FCEUmm** para NES o **Snes9x** para SNES.
+3. Reinicia Neo-Vault tras actualizar el código del proceso principal o preload: detén el proceso de desarrollo y vuelve a ejecutar `npm run dev`.
+4. En **Configuración → Conecta tu emulación**, selecciona `retroarch.exe` y el núcleo `fceumm_libretro.dll` o `snes9x_libretro.dll` correspondiente, normalmente en la carpeta `cores` de RetroArch.
+5. Abre NES o SNES y usa **Importar juego** para añadir un archivo local sin comprimir. También puedes asociar un archivo a un título existente. No se copian ni descargan juegos.
+6. Selecciona el perfil correcto y pulsa **Jugar** o Enter/A. Para volver, cierra RetroArch o utiliza Esc desde su ventana.
+
+El mapeo del mando dentro de RetroArch es independiente del launcher. Las pruebas automatizadas simulan el proceso externo y comprueban persistencia de rutas, cancelación de diálogos, separación de perfiles, conservación de una partida existente y recuperación ante errores; no prueban la compatibilidad de un juego ni del hardware físico.
+
+La carpeta `data/` contiene información local y guardados. Está excluida de Git y del paquete distribuible. No la borres al actualizar. Mantén también los perfiles de Neo-Vault; su exportación y restauración siguen pendientes.
 
 ## Cómo está construido
 
@@ -97,7 +114,7 @@ Referencias: [RetroArch](https://www.retroarch.com/platforms.html), [lanzamiento
 
 El proceso principal de Electron controla la ventana. El preload expone una API limitada para comunicarse con la interfaz. React gestiona selectores, perfiles, favoritos y catálogo.
 
-Los perfiles y favoritos se almacenan en `localStorage` del navegador integrado. No se ha implementado una base de datos de partidas. Los catálogos descargados se conservan en memoria durante la sesión; las imágenes dependen de su proveedor y de la caché del navegador. La disponibilidad sin conexión de esos recursos no está garantizada.
+Los perfiles y favoritos se almacenan en `localStorage` del navegador integrado. Las rutas del ejecutable, núcleos y juegos asociados se almacenan en data/launcher.json. Los guardados de la integración NES/SNES se dirigen a data/profiles dentro de la carpeta del proyecto en desarrollo o junto al ejecutable empaquetado. Esta ubicación debe ser escribible. No se ha implementado una base de datos de partidas ni exportación de perfiles; conservar data por sí sola no restaura los perfiles de localStorage. Los catálogos descargados se conservan en memoria durante la sesión; las imágenes dependen de su proveedor y de la caché del navegador. La disponibilidad sin conexión de esos recursos no está garantizada.
 
 ### Organización del código
 
@@ -130,6 +147,7 @@ Ejecutar los comandos desde la raíz del proyecto. `npm run dev` abre la aplicac
 ### Comprobaciones
 
 ```bash
+npm test
 npm run typecheck
 npm run lint
 npm run build
@@ -161,9 +179,9 @@ Los nombres de los botones pueden variar según el mando. Para detectar un dispo
 ## Próximos hitos
 
 1. Validar navegación y diseño en ventana y pantalla completa.
-2. Integrar RetroArch y un núcleo para una primera prueba jugable.
+2. Validar RetroArch con FCEUmm o Snes9x y un juego homebrew autorizado.
 3. Asociar juegos locales con el catálogo sin confundir variantes.
-4. Guardar y recuperar partidas de forma independiente por perfil.
+4. Verificar guardados reales y añadir exportación y recuperación de perfiles y partidas.
 5. Ampliar sistemas y completar recursos visuales.
 6. Medir rendimiento y preparar una distribución modular para Windows.
 
@@ -180,4 +198,3 @@ Las marcas, imágenes y demás recursos de terceros pertenecen a sus respectivos
 ## Licencia del proyecto
 
 Pendiente de definir por su autor. Hasta que se añada una licencia explícita, no debe asumirse que el código tiene licencia MIT u otra licencia de código abierto.
-
