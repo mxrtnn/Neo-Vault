@@ -1,0 +1,60 @@
+
+@use '../abstracts/variables' as *;
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 32px;
+  border-bottom: 1px solid $border-color;
+  background: $bg-secondary;
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    strong {
+      display: block;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+
+    small {
+      color: $accent-light;
+      font-size: 10px;
+      letter-spacing: 2px;
+    }
+  }
+
+  &__logo {
+    padding: 12px;
+    background: $accent-primary;
+    font-weight: 800;
+    font-size: 20px;
+  }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+
+    span {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: $text-secondary;
+      font-size: 13px;
+    }
+
+    .site-header__active {
+      color: $accent-light;
+    }
+  }
+
+  &__version {
+    color: $text-secondary;
+    font-size: 12px;
+  }
+}
