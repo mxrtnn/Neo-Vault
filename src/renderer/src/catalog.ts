@@ -1,6 +1,6 @@
 export type CatalogSource = { folder: string; name: string }
 export const catalogSources: Record<string, CatalogSource> = {
-  arcade: { folder: 'mame', name: 'MAME 0.289' },
+  arcade: { folder: 'mame', name: 'MAME' },
   snes: { folder: 'no-intro', name: 'Nintendo - Super Nintendo Entertainment System' },
   n64: { folder: 'no-intro', name: 'Nintendo - Nintendo 64' },
   nds: { folder: 'no-intro', name: 'Nintendo - Nintendo DS' },

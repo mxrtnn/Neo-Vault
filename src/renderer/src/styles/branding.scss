@@ -1,0 +1,73 @@
+.vault-header .brand-logo {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  background: #09070b;
+  border: 1px solid #f52a5e55;
+  box-shadow: 0 0 18px #f5275d30;
+  flex-shrink: 0;
+  transition:
+    box-shadow 250ms,
+    transform 250ms;
+}
+.brand-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.brand:hover .brand-logo,
+.brand:focus-visible .brand-logo {
+  box-shadow: 0 0 25px #ff245877;
+  transform: scale(1.05);
+}
+.vault-app > .startup-brand {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  background: radial-gradient(ellipse, #300817, #08090dfc 65%);
+  animation: vault-startup-fade 1650ms ease both;
+}
+.startup-brand img {
+  width: min(440px, 65vw, 65vh);
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 20%;
+  filter: drop-shadow(0 0 28px #ff174e55);
+  animation: vault-logo-enter 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes vault-logo-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.78) translateY(16px);
+    filter: drop-shadow(0 0 0 #ff174e00);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: drop-shadow(0 0 28px #ff174e55);
+  }
+}
+@keyframes vault-startup-fade {
+  0%,
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-app > .startup-brand {
+    display: none;
+  }
+  .brand .brand-logo {
+    transition: none;
+    transform: none;
+  }
+}

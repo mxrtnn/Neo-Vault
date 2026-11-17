@@ -4,6 +4,9 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const launcher: LauncherAPI = {
+  getArcadeControls: (profile) => ipcRenderer.invoke('launcher:controls-get', profile),
+  saveArcadeControls: (profile, controls) =>
+    ipcRenderer.invoke('launcher:controls-save', profile, controls),
   chooseMame: () => ipcRenderer.invoke('launcher:mame'),
   importArcadeFolder: () => ipcRenderer.invoke('launcher:arcade-folder'),
   auditArcade: (title) => ipcRenderer.invoke('launcher:arcade-audit', title),

@@ -1,10 +1,32 @@
 export type VaultAction =
   'up' | 'down' | 'left' | 'right' | 'accept' | 'back' | 'favorite' | 'previous' | 'next'
 export function gamepadAction(
-  pad: Pick<Gamepad, 'mapping' | 'buttons' | 'axes'>
+  pad: Pick<Gamepad, 'mapping' | 'buttons' | 'axes'>,
+  bindings?: Partial<Record<VaultAction, { button: number | null }>>
 ): VaultAction | null {
   if (pad.mapping !== 'standard') return null
   const pressed = (index: number): boolean => pad.buttons[index]?.pressed ?? false
+  if (bindings) {
+    for (const action of [
+      'back',
+      'accept',
+      'favorite',
+      'previous',
+      'next',
+      'up',
+      'down',
+      'left',
+      'right'
+    ] as VaultAction[]) {
+      const button = bindings[action]?.button
+      if (button !== undefined && button !== null && pressed(button)) return action
+    }
+    if ((pad.axes[1] ?? 0) < -0.55) return 'up'
+    if ((pad.axes[1] ?? 0) > 0.55) return 'down'
+    if ((pad.axes[0] ?? 0) < -0.55) return 'left'
+    if ((pad.axes[0] ?? 0) > 0.55) return 'right'
+    return null
+  }
   if (pressed(1)) return 'back'
   if (pressed(0)) return 'accept'
   if (pressed(3)) return 'favorite'

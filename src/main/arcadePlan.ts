@@ -4,7 +4,7 @@ import { arcadeById, arcadeByTitle, type ArcadeGame } from '../shared/arcade'
 export function requireArcadeGame(title: string): ArcadeGame {
   const game = arcadeByTitle.get(title)
   if (!game || !/^[a-z0-9_]{1,64}$/.test(game.id))
-    throw new Error('El título no pertenece al catálogo MAME 0.289.')
+    throw new Error('El título no pertenece al catálogo MAME incluido.')
   return game
 }
 export function arcadeFileTitle(file: string): string {
@@ -54,9 +54,7 @@ export function arcadeLaunchArgs(game: ArcadeGame, paths: string[], directory: s
     join(directory, 'ini')
   ]
 }
-export async function scanArcadeFolder(
-  root: string
-): Promise<{
+export async function scanArcadeFolder(root: string): Promise<{
   bindings: Record<string, string>
   paths: string[]
   matched: number

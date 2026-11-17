@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createGamepadGate, emitAction, gamepadAction, type VaultAction } from '../controls'
+import { navigationKey, readNavigation } from '../navigationControls'
 export type InputStatus = { name: string; standard: boolean; lastAction: string }
 export function useInputDevices(): InputStatus {
   const [status, setStatus] = useState<InputStatus>({
@@ -8,21 +9,13 @@ export function useInputDevices(): InputStatus {
     lastAction: 'Sin actividad'
   })
   useEffect(() => {
-    const keymap: Record<string, VaultAction> = {
-      ArrowUp: 'up',
-      ArrowDown: 'down',
-      ArrowLeft: 'left',
-      ArrowRight: 'right',
-      Enter: 'accept',
-      Escape: 'back',
-      f: 'favorite',
-      F: 'favorite',
-      PageUp: 'previous',
-      PageDown: 'next'
-    }
+    let mappings = readNavigation()
+    let capturing = false
     function keyboard(event: KeyboardEvent): void {
       const target = event.target as HTMLElement
       if (
+        capturing ||
+        event.defaultPrevented ||
         event.isComposing ||
         event.ctrlKey ||
         event.metaKey ||
@@ -30,11 +23,11 @@ export function useInputDevices(): InputStatus {
         target.closest('input,textarea,select,[contenteditable="true"]')
       )
         return
-      const action = keymap[event.key]
+      const action = navigationKey(mappings, event.code)
       if (
         !action ||
         (event.key === 'Enter' &&
-          target.closest('button,a') &&
+          target.closest('button,a,summary') &&
           !target.closest('[data-vault-item]'))
       )
         return
@@ -61,11 +54,11 @@ export function useInputDevices(): InputStatus {
           disarm()
           setStatus((s) => ({ ...s, name: pad?.id ?? '', standard: pad?.mapping === 'standard' }))
         }
-        const action = pad ? gamepadAction(pad) : null
+        const action = pad ? gamepadAction(pad, mappings) : null
         const typing = document.activeElement?.closest(
           'input,textarea,select,[contenteditable="true"]'
         )
-        const accepted = gate(action, time, document.hasFocus() && !typing)
+        const accepted = gate(action, time, document.hasFocus() && !typing && !capturing)
         if (accepted) {
           setStatus((s) => ({ ...s, lastAction: `Mando: ${accepted}` }))
           emitAction(accepted)
@@ -76,10 +69,23 @@ export function useInputDevices(): InputStatus {
       frame = requestAnimationFrame(poll)
     }
     window.addEventListener('keydown', keyboard)
+    const reload = (): void => {
+      mappings = readNavigation()
+      disarm()
+      setStatus((s) => ({ ...s, lastAction: 'Controles actualizados' }))
+    }
+    const capture = (event: Event): void => {
+      capturing = !!(event as CustomEvent<boolean>).detail
+      disarm()
+    }
+    window.addEventListener('vault-controls-changed', reload)
+    window.addEventListener('vault-controls-capture', capture)
     window.addEventListener('blur', disarm)
     frame = requestAnimationFrame(poll)
     return () => {
       window.removeEventListener('keydown', keyboard)
+      window.removeEventListener('vault-controls-changed', reload)
+      window.removeEventListener('vault-controls-capture', capture)
       window.removeEventListener('blur', disarm)
       cancelAnimationFrame(frame)
     }

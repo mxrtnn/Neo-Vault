@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerLauncher } from './launcher'
 import icon from '../../resources/icon.png?asset'
+import windowsIcon from '../../resources/icon.ico?asset'
 
 function createWindow(): void {
   // Crear la ventana principal de NEO-VAULT
@@ -15,7 +16,8 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
 
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon: process.platform === 'win32' ? windowsIcon : icon,
+    title: 'Neo-Vault',
 
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -63,7 +65,7 @@ function createWindow(): void {
 // Inicialización de Electron
 app.whenReady().then(() => {
   // Identificador de la aplicación
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.neovault.desktop')
 
   // Atajos de teclado durante el desarrollo
   app.on('browser-window-created', (_, window) => {

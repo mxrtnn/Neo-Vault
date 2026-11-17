@@ -1,0 +1,53 @@
+@font-face {
+  font-family: 'Oxanium';
+  src: url('../assets/fonts/Oxanium.ttf') format('truetype');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --vault-font: 'Oxanium', 'Segoe UI', sans-serif;
+  --vault-text-size: 14px;
+}
+
+/* One typography contract overrides the older per-component sizes, including
+   compact viewport rules. Decorative background lettering is not UI text. */
+.vault-app,
+.vault-app * {
+  font-family: var(--vault-font) !important;
+  font-size: var(--vault-text-size) !important;
+  font-style: normal !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.35 !important;
+}
+
+.vault-app input::placeholder,
+.vault-app input::file-selector-button {
+  font-family: var(--vault-font);
+  font-size: var(--vault-text-size);
+}
+
+.vault-app .hero-copy h1,
+.vault-app .game-description h1 {
+  height: auto;
+  min-height: 1.35em;
+  max-height: 2.7em;
+  -webkit-line-clamp: 2;
+  margin: 8px 0;
+}
+
+.vault-app .game-description .eyebrow,
+.vault-app .game-association {
+  height: auto;
+  margin-bottom: 6px;
+}
+
+.vault-app .section-heading,
+.vault-app .vault-footer {
+  letter-spacing: 0.02em;
+}
+
+.vault-app .game-wheel-title {
+  -webkit-line-clamp: 2;
+}

@@ -22,10 +22,10 @@ export default function EmulationSettings(): React.JSX.Element {
   }
   const rows = [
     {
-      label: 'Arcade · MAME 0.289',
+      label: 'Arcade · MAME',
       file: config?.mamePath,
       action: () => window.api.launcher.chooseMame(),
-      hint: 'Incluido en runtime/mame. Requiere Windows 10+ y CPU x86-64-v2. Preparar desde la terminal: npm run setup:mame. Pong se puede ejecutar sin ROMs externas.'
+      hint: 'MAME 0.277 se prepara en runtime/mame-0277 para esta colección. La instalación anterior se conserva. Preparar desde la terminal: npm run setup:mame. Pong no necesita ROM externa.'
     },
     {
       label: '1. RetroArch para Windows',

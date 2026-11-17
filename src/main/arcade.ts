@@ -6,6 +6,7 @@ import type { LauncherConfig, LauncherResult } from '../shared/launcher'
 import { officialArcadePages } from '../shared/arcade'
 import { arcadeLaunchArgs, arcadeRomPaths, requireArcadeGame, scanArcadeFolder } from './arcadePlan'
 import { profileGameDirectory } from './launchPlan'
+import { prepareArcadeControls, readArcadeControls, saveArcadeControls } from './arcadeControls'
 export interface ArcadeContext {
   projectRoot: string
   load: () => Promise<LauncherConfig>
@@ -52,13 +53,18 @@ export function runMameAudit(
       clearTimeout(timeout)
       resolve(result)
     }
-    const timeout = setTimeout(() => {
-      child.kill()
-      finish({
-        ok: false,
-        message: 'La auditoría superó 45 segundos. Revisa el set o sus dependencias.'
-      })
-    }, 45000)
+    const timeout = setTimeout(
+      () => {
+        child.kill()
+        finish({
+          ok: false,
+          message: id
+            ? 'La auditoría superó 45 segundos. Revisa el set o sus dependencias.'
+            : 'La auditoría de la colección superó 15 minutos. Verifica grupos más pequeños.'
+        })
+      },
+      id ? 45000 : 15 * 60 * 1000
+    )
     const read = (data: Buffer): void => {
       output = (output + String(data)).slice(-4000)
     }
@@ -75,8 +81,8 @@ export function runMameAudit(
         ok: code === 0,
         message:
           code === 0
-            ? 'Verificación correcta para MAME 0.289.'
-            : `Faltan archivos o no coinciden con MAME 0.289. ${output}`
+            ? 'Verificación correcta con el MAME seleccionado.'
+            : `Faltan archivos o no coinciden con el MAME seleccionado. ${output}`
       })
     )
   })
@@ -98,9 +104,10 @@ export async function prepareArcadeLaunch(
     throw new Error('Añade tu carpeta de ROMs arcade para detectar este set.')
   if (file && !(await stat(file)).isFile())
     throw new Error('El archivo asociado ya no está disponible.')
-  const root = join(context.projectRoot, 'data', 'arcade', 'roms')
+  const root = join(context.projectRoot, 'ROMS')
   const paths = arcadeRomPaths([
     root,
+    join(context.projectRoot, 'data', 'arcade', 'roms'),
     ...(file ? [dirname(file)] : []),
     ...(config.arcadeRomPaths ?? [])
   ])
@@ -116,14 +123,30 @@ export async function prepareArcadeLaunch(
   }
   for (const folder of ['cfg', 'nvram', 'states', 'inp', 'snap', 'diff', 'ini'])
     await mkdir(join(directory, folder), { recursive: true })
-  return { executable, args: arcadeLaunchArgs(game, paths, directory), cwd: dirname(executable) }
+  return {
+    executable,
+    args: [
+      ...arcadeLaunchArgs(game, paths, directory),
+      ...(await prepareArcadeControls(context.projectRoot, profile))
+    ],
+    cwd: dirname(executable)
+  }
 }
 export function registerArcade(context: ArcadeContext): () => boolean {
+  ipcMain.handle('launcher:controls-get', async (event, profile: string) => {
+    context.windowFor(event)
+    return readArcadeControls(context.projectRoot, profile)
+  })
+  ipcMain.handle('launcher:controls-save', async (event, profile: string, controls: unknown) => {
+    context.windowFor(event)
+    if (context.isBusy()) throw new Error('Cierra el juego antes de guardar los controles.')
+    return saveArcadeControls(context.projectRoot, profile, controls)
+  })
   let auditing = false
   ipcMain.handle('launcher:mame', async (event) => {
     const window = context.windowFor(event)
     const selected = await dialog.showOpenDialog(window, {
-      title: 'Selecciona mame.exe (0.289)',
+      title: 'Selecciona mame.exe',
       properties: ['openFile'],
       filters: [{ name: 'MAME', extensions: ['exe'] }]
     })
@@ -197,6 +220,7 @@ export function registerArcade(context: ArcadeContext): () => boolean {
           executable,
           game?.id ?? null,
           arcadeRomPaths([
+            join(context.projectRoot, 'ROMS'),
             join(context.projectRoot, 'data', 'arcade', 'roms'),
             ...(file ? [dirname(file)] : []),
             ...(config.arcadeRomPaths ?? []),

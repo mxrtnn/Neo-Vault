@@ -3,7 +3,7 @@ A desktop launcher for retro collections, inspired by HyperSpin and developed wi
 
 El objetivo es convertir una biblioteca local en una experiencia cómoda para jugar desde una ventana, una pantalla completa o un equipo dedicado. Neo-Vault se encarga de la presentación y la organización; la ejecución de los juegos se delegará en emuladores externos.
 
-> Proyecto en desarrollo. Se pueden explorar catálogos y gestionar perfiles y favoritos. NES/SNES utilizan RetroArch y arcade utiliza MAME 0.289. La prueba real de Pong sin ROM externa terminó correctamente sin video ni audio; las pruebas visuales y de mando físico siguen pendientes.
+> Proyecto en desarrollo. Se pueden explorar catálogos y gestionar perfiles y favoritos. NES/SNES utilizan RetroArch y arcade utiliza MAME 0.277. La prueba real de Pong sin ROM externa terminó correctamente sin video ni audio; las pruebas visuales y de mando físico siguen pendientes.
 
 ## Propósito
 
@@ -24,7 +24,7 @@ El objetivo es convertir una biblioteca local en una experiencia cómoda para ju
 - Búsqueda de títulos y filtros de favoritos y archivos locales.
 - Importación y asociación de archivos NES (.nes) y SNES (.sfc/.smc).
 - Instalación de RetroArch y Snes9x dentro de runtime/retroarch mediante npm run setup:snes, con detección automática.
-- Instalación de MAME 0.289 en runtime/mame y catálogo arcade local desde sus metadatos oficiales.
+- Instalación de MAME 0.277 en runtime/mame-0277 y catálogo arcade local desde sus metadatos oficiales.
 - Importación de carpetas arcade, auditoría individual o de colección y prueba de Pong sin ROM externa.
 - Configuración manual opcional de RetroArch y núcleos FCEUmm / Snes9x.
 - Lanzamiento externo sin shell, control de errores y retorno a Neo-Vault al terminar.
@@ -51,7 +51,7 @@ La compatibilidad con mandos físicos requiere pruebas en cada dispositivo. Wind
 | PlayStation 1 | En línea |
 | Nintendo NES | En línea |
 | Game Boy | En línea |
-| MAME / Arcade | Catálogo local MAME 0.289 |
+| MAME / Arcade | Catálogo local MAME 0.277 |
 
 La presencia de una consola en esta tabla no implica que su emulador esté instalado o integrado. Las listas pueden incluir regiones, revisiones y otras variantes; no se garantiza un catálogo exhaustivo.
 
@@ -78,7 +78,7 @@ La presencia de una consola en esta tabla no implica que su emulador esté insta
 
 ## Propuesta de emulación
 
-NES y SNES utilizan **RetroArch con núcleos Libretro instalados de forma selectiva**. Arcade utiliza **MAME 0.289** como proceso independiente. Se implementaron lanzamiento, auditoría arcade y rutas de guardado por perfil. La primera prueba real de Pong terminó correctamente sin video ni audio; falta la validación interactiva.
+NES y SNES utilizan **RetroArch con núcleos Libretro instalados de forma selectiva**. Arcade utiliza **MAME 0.277** como proceso independiente. Se implementaron lanzamiento, auditoría arcade y rutas de guardado por perfil. La primera prueba real de Pong terminó correctamente sin video ni audio; falta la validación interactiva.
 
 Neo-Vault inicia un proceso externo de RetroArch indicando el núcleo, el archivo del juego y una configuración por perfil. El launcher se oculta al iniciar el proceso y vuelve a mostrarse cuando termina o falla. Cada perfil, sistema y título recibe directorios propios para partidas y estados. La carga y el guardado automáticos de estados están desactivados; el usuario gestiona sus estados desde RetroArch.
 
@@ -92,12 +92,79 @@ Referencias: [RetroArch](https://www.retroarch.com/platforms.html), [lanzamiento
 
 ## Primera prueba arcade: MAME
 
+La colección local actual utiliza **MAME 0.277**: `npm run setup:mame` prepara esa versión y
+su catálogo oficial. La instalación queda en `runtime/mame-0277`; se conserva la instalación
+anterior en `runtime/mame`. El selector manual de ejecutable sigue disponible. El script permite
+preparar 0.289 explícitamente con `./scripts/setup-mame.ps1 -Version 0.289`; al cambiar de versión
+se debe volver a auditar la colección y comprobar los títulos, pues los metadatos pueden cambiar.
+
+Los RAR multipartes de una colección se extraen juntos desde `part01`; no son juegos que MAME
+pueda ejecutar directamente. Se preservan los RAR y se extraen solo ZIP y CHD en una carpeta
+nueva dentro de `ROMS`. En una colección merged, las variantes pueden usar el ZIP del juego padre.
+La auditoría de una colección grande dispone de hasta 15 minutos; la de un set tiene 45 segundos.
+Un resultado correcto verifica los archivos, no garantiza ausencia de errores durante una partida.
+
+En la instalación personal se completó una extracción de 8 volúmenes RAR sin errores y una
+auditoría con MAME 0.277. Se asociaron 5.370 entradas y variantes con auditoría correcta y driver
+`good` (1.781 juegos padre). Los conjuntos excluidos se conservan en disco. Gridlee, que ya había
+sido probado por el usuario, conserva su asociación aunque su driver figura como `imperfect`.
+Los informes personales están en `data/arcade/collection-0277-report.json` y
+`data/arcade/0277-smoke-results.json`, fuera de Git. Final Fight, Street Fighter II y Metal Slug
+completaron pruebas de ejecución de tres segundos solicitados sin video ni sonido, con salida 0.
+Estas pruebas no validan la partida completa ni los mandos físicos. El botón de prueba ofrece
+Final Fight cuando está asociado. La colección, los RAR y los informes no se incluyen en el código
+ni en la distribución pública de Neo-Vault.
+
+### Sala arcade de Neo-Vault
+
+La pantalla principal de MAME muestra búsqueda, favoritos, archivos locales y la selección del
+juego. **Opciones** reúne las herramientas de importación y auditoría, el juego de prueba, el video,
+la demostración y el modo ligero. El menú se puede cerrar con Esc/B; mientras está abierto se
+pausan la demostración y los atajos de lanzamiento del catálogo.
+
+La carpeta local recomendada es **`ROMS/`**, junto a `package.json`. Está excluida de Git y del
+instalador público. Guarda allí los ZIP sin renombrarlos ni extraerlos y usa **Opciones → Añadir
+carpeta** para asociar todos los sets detectados. Se conservan las carpetas arcade configuradas
+anteriormente y la búsqueda en `data/arcade/roms` para mantener compatibilidad.
+El catálogo enumera sets y variantes, no archivos descargados. La auditoría comprueba los archivos
+disponibles; no obtiene ROMs ni completa dependencias. Las descargas de MAMEdev mantienen sus
+condiciones particulares: https://www.mamedev.org/roms/ .
+
+La interfaz utiliza **Oxanium** a 14 px como tipografía común, incluida localmente para no
+depender de un servidor de fuentes. El archivo y su licencia SIL Open Font License están en
+`src/renderer/src/assets/fonts/`; proceden del [repositorio Google Fonts](https://github.com/google/fonts/tree/main/ofl/oxanium).
+El título del juego ocupa hasta dos líneas y la muestra utiliza el espacio restante del panel.
+El botón de prueba abre Gridlee cuando está asociado localmente; en otra instalación ofrece Pong.
+
+Al entrar en **MAME / Arcade**, el catálogo muestra un tema propio con suelo de neón animado,
+marquesina y monitor arcade. El tema se desmonta al volver a las consolas: no modifica el selector
+principal ni los catálogos de otros sistemas. Las casillas conservan las medidas comunes.
+
+- **Modo ligero** detiene las animaciones del tema y sustituye los videos por capturas. La preferencia
+  se guarda localmente; también se respeta la preferencia de movimiento reducido al iniciar.
+- **Demostración** es opcional y comienza después de al menos 45 segundos de inactividad, cambiando
+  de selección cada 7 segundos. No inicia juegos y se suspende al escribir, perder el foco o ejecutar
+  una operación. El teclado, ratón o mando devuelven el control al usuario.
+- **Video del juego** permite elegir un MP4 o WebM local de hasta 100 MB. Se reproduce en bucle,
+  sin sonido, con una captura de respaldo si falla. Los archivos no se copian ni se suben a Internet.
+  Las asociaciones de video duran solo hasta salir del catálogo (máximo 20 por sesión); no forman
+  parte de una biblioteca multimedia persistente. Los videos se pausan al perder el foco.
+- Se recuerda el último título seleccionado de MAME por perfil, salvo los cambios automáticos
+  de la demostración. Esta preferencia usa el almacenamiento local de Neo-Vault.
+- La preparación del lanzamiento muestra una pantalla arcade mientras el proceso principal
+  verifica e inicia el juego. El cierre del emulador conserva el retorno existente al catálogo.
+
+No se incluyen videos de juegos ni temas de terceros. Esta implementación adapta las ideas de
+[HyperSpin](https://docs.hyperspin-fe.com/docs/hyperspin/using-hyperspin/) y
+[HyperTheme](https://docs.hyperspin-fe.com/docs/themebuilder/intro/) a los componentes propios.
+Las pruebas automatizadas y la compilación no sustituyen la validación visual en Windows.
+
 ```bash
 npm run setup:mame
 npm run dev
 ```
 
-El script descarga MAME 0.289 para Windows x64 y prepara `runtime/mame`. Requiere Windows 10 o posterior y CPU con x86-64-v2. La distribución comprimida pesa unos 84 MiB; los componentes seleccionados ocupan unos 306 MiB instalados. No se descargan ROMs. Los binarios y archivos personales quedan fuera de Git.
+El script descarga MAME 0.277 para Windows x64 y prepara `runtime/mame-0277`. Requiere Windows 10 o posterior y CPU con x86-64-v2. La distribución comprimida pesa unos 93 MiB; los componentes seleccionados ocupan unos 354 MiB instalados. No se descargan ROMs. Los binarios y archivos personales quedan fuera de Git.
 
 1. Abre **MAME / Arcade** y pulsa **Probar Pong · sin ROM**. El driver simula circuitos discretos y no necesita archivos ROM externos.
 2. MAME abre su propia ventana; Neo-Vault se oculta y regresa cuando termina. Usa **Esc** para salir. Los controles habituales de crédito e inicio son **5** y **1**, cuando el juego los utiliza; **Tab** permite consultar o ajustar los controles de MAME. Pueden variar por juego.
@@ -105,7 +172,7 @@ El script descarga MAME 0.289 para Windows x64 y prepara `runtime/mame`. Requier
 4. Usa **Verificar set** o **Verificar colección**. La auditoría comprueba archivos faltantes y checksums; no descarga juegos. Antes de iniciar un título con ROM, Neo-Vault vuelve a verificar el set y sus dependencias.
 5. Algunos títulos tienen **Abrir fuente oficial**. El botón abre su página de MAMEdev: las condiciones se aceptan allí y el usuario descarga desde ese sitio. Después se añade la carpeta correspondiente. No se automatiza la aceptación de condiciones ni se redistribuyen esos archivos.
 
-El catálogo deriva del XML oficial de MAME 0.289 y contiene **19.224 entradas con entrada de monedas**, incluidas variantes y títulos con limitaciones. Se excluyen dispositivos, BIOS y máquinas mecánicas. No representa 19.224 juegos instalados ni una promesa de compatibilidad. Los drivers preliminares no se ofrecen para iniciar. Los sets y sus dependencias deben ser compatibles con esta versión.
+El catálogo deriva del XML oficial de MAME 0.277 y contiene **19.224 entradas con entrada de monedas**, incluidas variantes y títulos con limitaciones. Se excluyen dispositivos, BIOS y máquinas mecánicas. No representa 19.224 juegos instalados ni una promesa de compatibilidad. Los drivers preliminares no se ofrecen para iniciar. Los sets y sus dependencias deben ser compatibles con esta versión.
 
 Configuración, NVRAM y estados se dirigen a `data/profiles/<perfil>/arcade/<titulo>/`, con un identificador estable por título. La disponibilidad de estados depende del driver; no se habilita su guardado automático.
 
@@ -127,6 +194,41 @@ El mapeo del mando dentro de RetroArch es independiente del launcher. Las prueba
 La carpeta `data/` contiene información local y guardados. Está excluida de Git y del paquete distribuible. No la borres al actualizar. Mantén también los perfiles de Neo-Vault; su exportación y restauración siguen pendientes.
 
 ## Cómo está construido
+
+### Configuración de controles y pausa
+
+**Configuración → Información** muestra los emuladores, núcleos, rutas y créditos.
+**Configuración → Mandos** separa la navegación del launcher de los controles de MAME:
+
+- La navegación permite capturar teclas y botones de un mando estándar. Se guarda automáticamente
+  en este equipo y no modifica los controles internos del juego. Al reutilizar una tecla o botón se
+  intercambia su asignación anterior para conservar las acciones del menú.
+- La base arcade del jugador 1 permite asignar direcciones, ocho botones, crédito, inicio, pausa y
+  menú. Pulsa **Guardar arcade**; las asignaciones se almacenan por perfil en
+  `data/profiles/<perfil>/arcade-controls/controls.json` y se aplican al siguiente lanzamiento.
+- Los números de botón del navegador y MAME pueden diferir. La numeración de MAME depende del
+  dispositivo y proveedor; para asignar el botón físico exacto usa **Tab** dentro del juego.
+- **Tab → Input Settings → Input Assignments (this system)** abre el menú nativo de MAME con los
+  controles que realmente tiene ese juego. Enter inicia la captura. Los cambios se guardan al
+  cerrar MAME normalmente en las carpetas por perfil y título ya existentes. Esos ajustes tienen
+  prioridad sobre la base general; Neo-Vault no borra ni regenera los CFG específicos del juego.
+- **P o F5** pausa/reanuda MAME. `pause_brightness=0.35` atenúa la imagen y un script Lua dibuja
+  **PAUSA** dentro del emulador cuando está pausado y no hay un menú nativo abierto. No es una capa
+  sobre un juego que siga ejecutándose. Tab permanece disponible como acceso de respaldo al menú.
+- Los controles dentro de RetroArch para NES/SNES conservan su configuración independiente.
+
+Se comprobó con MAME 0.277 y Final Fight que una asignación nueva se carga, la pausa congela el
+tiempo emulado, se ejecuta el dibujo del rótulo y se puede reanudar. Las pruebas automáticas
+no validan la apariencia final ni los mandos USB/Bluetooth físicos.
+
+La identidad visual utiliza el icono aportado por el autor en `resources/neo-vault-source.png`.
+Sus versiones PNG y el ICO de Windows (16–256 px) se incluyen localmente. El icono se aplica a la
+ventana, a la barra de tareas y al paquete Windows, con AppUserModelID `com.neovault.desktop`.
+El encabezado muestra la misma imagen; al iniciar hay una animación de 1,7 segundos que puede
+omitirse con clic, tecla o mando y que se desactiva con la preferencia de movimiento reducido.
+Los cambios de icono nativo requieren reiniciar el proceso de Electron. Los accesos anclados
+antiguos pueden conservar el icono de su ejecutable; el instalador debe reconstruirse para
+actualizar el icono del ejecutable y los nuevos accesos directos.
 
 | Tecnología | Función |
 | --- | --- |

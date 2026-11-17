@@ -10,7 +10,7 @@ export default function GamePreview({
     <div className="game-preview">
       <GameArtwork key={`${systemId}:${game}`} systemId={systemId} game={game} />
       <span className="crt-scanlines" aria-hidden="true" />
-      <span className="preview-label">NEO-VAULT / PREVIEW</span>
+      {systemId !== 'arcade' && <span className="preview-label">NEO-VAULT / PREVIEW</span>}
     </div>
   )
 }

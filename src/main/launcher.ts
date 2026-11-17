@@ -39,9 +39,11 @@ export function registerLauncher(): void {
       ...config,
       mamePath:
         config.mamePath ||
-        ((await exists(join(projectRoot, 'runtime', 'mame', 'mame.exe')))
-          ? join(projectRoot, 'runtime', 'mame', 'mame.exe')
-          : ''),
+        ((await exists(join(projectRoot, 'runtime', 'mame-0277', 'mame.exe')))
+          ? join(projectRoot, 'runtime', 'mame-0277', 'mame.exe')
+          : (await exists(join(projectRoot, 'runtime', 'mame', 'mame.exe')))
+            ? join(projectRoot, 'runtime', 'mame', 'mame.exe')
+            : ''),
       retroarchPath: config.retroarchPath || ((await exists(executable)) ? executable : ''),
       cores: {
         ...config.cores,

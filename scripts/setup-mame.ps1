@@ -1,22 +1,24 @@
-param([switch]$UseCachedDownloads)
+param([switch]$UseCachedDownloads, [ValidateSet('0.277','0.289')][string]$Version = '0.277')
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $downloadRoot = Join-Path $projectRoot 'work/mame-download'
-$runtimeRoot = Join-Path $projectRoot 'runtime/mame'
-$archive = Join-Path $downloadRoot 'mame0289b_x64.exe'
-$xmlArchive = Join-Path $downloadRoot 'mame0289lx.zip'
-$runtimeUrl = 'https://github.com/mamedev/mame/releases/download/mame0289/mame0289b_x64.exe'
-$xmlUrl = 'https://github.com/mamedev/mame/releases/download/mame0289/mame0289lx.zip'
+$tag = 'mame' + $Version.Replace('.','')
+$runtimeRoot = Join-Path $projectRoot $(if ($Version -eq '0.289') { 'runtime/mame' } else { 'runtime/mame-0277' })
+$binaryName = $tag + $(if ($Version -eq '0.277') { 'b_64bit.exe' } else { 'b_x64.exe' })
+$archive = Join-Path $downloadRoot $binaryName
+$xmlArchive = Join-Path $downloadRoot ($tag + 'lx.zip')
+$runtimeUrl = "https://github.com/mamedev/mame/releases/download/$tag/$binaryName"
+$xmlUrl = "https://github.com/mamedev/mame/releases/download/$tag/${tag}lx.zip"
 $catalogFile = Join-Path $projectRoot 'src/shared/arcade-catalog.json'
-if (![Environment]::Is64BitOperatingSystem) { throw 'MAME 0.289 requiere Windows 10+ de 64 bits y CPU x86-64-v2.' }
-if ((Test-Path (Join-Path $runtimeRoot 'mame.exe')) -and (Test-Path (Join-Path $runtimeRoot 'neo-vault-runtime.json')) -and (Test-Path $catalogFile)) {
+if (![Environment]::Is64BitOperatingSystem) { throw 'Se requiere Windows de 64 bits.' }
+if ((Test-Path (Join-Path $runtimeRoot 'mame.exe')) -and (Test-Path (Join-Path $runtimeRoot 'neo-vault-runtime.json')) -and (Test-Path $catalogFile) -and ((Get-Content $catalogFile -Raw | ConvertFrom-Json).version -eq $Version)) {
   Write-Output 'MAME y su catalogo ya estan preparados. Se conserva la instalacion.'
   exit 0
 }
 New-Item -ItemType Directory -Force $downloadRoot | Out-Null
 if (!(Test-Path $archive) -or !$UseCachedDownloads) {
-  Write-Output 'Descargando MAME 0.289 oficial (84 MiB)...'
+  Write-Output "Descargando MAME $Version oficial..."
   Invoke-WebRequest -Uri ($runtimeUrl + '?neo-vault=' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) -OutFile $archive -TimeoutSec 600
 }
 if (!(Test-Path $xmlArchive) -or !$UseCachedDownloads) {
@@ -38,8 +40,8 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [System.IO.Compression.ZipFile]::OpenRead($xmlArchive)
 $games = [System.Collections.Generic.List[object]]::new()
 try {
-  $xmlEntry = $zip.Entries | Where-Object { $_.FullName -eq 'mame0289.xml' } | Select-Object -First 1
-  if (!$xmlEntry) { throw 'Falta el XML esperado de MAME 0.289.' }
+  $xmlEntry = $zip.Entries | Where-Object { $_.FullName -eq ($tag + '.xml') } | Select-Object -First 1
+  if (!$xmlEntry) { throw "Falta el XML esperado de MAME $Version." }
   $stream = $xmlEntry.Open()
   $settings = [System.Xml.XmlReaderSettings]::new()
   $settings.DtdProcessing = [System.Xml.DtdProcessing]::Ignore
@@ -80,13 +82,13 @@ if ($games.Count -lt 1000) { throw 'El catalogo resultante esta incompleto; no s
 foreach ($group in ($games | Group-Object title | Where-Object { $_.Count -gt 1 })) {
   foreach ($game in $group.Group) { $game.title += ' [' + $game.id + ']' }
 }
-$catalog = @{ version = '0.289'; source = $xmlUrl; games = @($games | Sort-Object title) }
+$catalog = @{ version = $Version; source = $xmlUrl; games = @($games | Sort-Object title) }
 [System.IO.File]::WriteAllText($catalogFile, ($catalog | ConvertTo-Json -Depth 5 -Compress), [System.Text.UTF8Encoding]::new($false))
 New-Item -ItemType Directory -Force $runtimeRoot | Out-Null
 foreach ($item in (Get-ChildItem -LiteralPath $stage)) {
   if ($item.Name -ne 'extract-list.txt') { Copy-Item -LiteralPath $item.FullName -Destination $runtimeRoot -Recurse -Force }
 }
-$manifest = @{ version = '0.289'; platform = 'windows-x86_64-v2'; source = $runtimeUrl; installedAt = [DateTime]::UtcNow.ToString('o'); archiveSha256 = (Get-FileHash $archive -Algorithm SHA256).Hash; executableSha256 = (Get-FileHash (Join-Path $runtimeRoot 'mame.exe') -Algorithm SHA256).Hash; catalogSha256 = (Get-FileHash $xmlArchive -Algorithm SHA256).Hash }
+$manifest = @{ version = $Version; platform = $(if ($Version -eq '0.289') {'windows-x86_64-v2'} else {'windows-x86_64'}); source = $runtimeUrl; installedAt = [DateTime]::UtcNow.ToString('o'); archiveSha256 = (Get-FileHash $archive -Algorithm SHA256).Hash; executableSha256 = (Get-FileHash (Join-Path $runtimeRoot 'mame.exe') -Algorithm SHA256).Hash; catalogSha256 = (Get-FileHash $xmlArchive -Algorithm SHA256).Hash }
 [System.IO.File]::WriteAllText((Join-Path $runtimeRoot 'neo-vault-runtime.json'), ($manifest | ConvertTo-Json), [System.Text.UTF8Encoding]::new($false))
 $bytes = (Get-ChildItem -LiteralPath $runtimeRoot -Recurse -File | Measure-Object Length -Sum).Sum
 Write-Output ('MAME instalado: {0:N1} MiB. Catalogo: {1} entradas arcade. No se descargaron ROMs.' -f ($bytes / 1MB), $games.Count)

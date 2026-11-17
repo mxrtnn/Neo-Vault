@@ -1,0 +1,149 @@
+.settings-dashboard {
+  .settings-tabs {
+    display: flex;
+    gap: 10px;
+    margin: 18px 0 24px;
+    border-bottom: 1px solid #493047;
+    padding-bottom: 12px;
+  }
+  .settings-tabs button {
+    padding: 12px 22px;
+    border-radius: 8px;
+    border: 1px solid #493047;
+    color: #b9acbc;
+  }
+  .settings-tabs [aria-selected='true'] {
+    background: #801b38;
+    border-color: #ff3975;
+    color: #fff;
+  }
+  .settings-panel {
+    max-width: none;
+  }
+}
+.controls-dashboard {
+  display: grid;
+  gap: 22px;
+}
+.device-status {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: linear-gradient(115deg, #2c1629, #15121f);
+  border: 1px solid #71304a;
+  border-radius: 12px;
+  padding: 20px;
+}
+.device-status > svg {
+  color: #ff3975;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+.device-status p {
+  margin: 6px 0;
+  color: #c2adbe;
+}
+.device-status span {
+  color: #ef7ca4;
+}
+.controls-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+.control-card {
+  padding: 22px;
+  border: 1px solid #493047;
+  background: #14121d;
+  border-radius: 12px;
+  min-width: 0;
+}
+.control-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.control-card h2 svg {
+  color: #ff3975;
+}
+.control-card p {
+  color: #b9acbc;
+  margin: 10px 0 18px;
+}
+.binding-row,
+.binding-head {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(90px, 1fr) minmax(100px, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.binding-head {
+  color: #b39ba9;
+  border-bottom: 1px solid #493047;
+}
+.binding-row button,
+.binding-row select {
+  min-width: 0;
+  width: 100%;
+  padding: 9px;
+  color: #f7d4e3;
+  background: #231926;
+  border: 1px solid #604056;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.binding-row button:hover {
+  border-color: #ff3975;
+}
+.control-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.control-card .secondary {
+  width: auto;
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.controls-notice {
+  position: sticky;
+  bottom: 0;
+  padding: 15px;
+  background: #38152b;
+  border: 1px solid #93405e;
+  border-radius: 8px;
+}
+.binding-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  background: #05070bd9;
+  padding: 20px;
+}
+.binding-modal {
+  width: min(480px, 100%);
+  text-align: center;
+  padding: 36px;
+  border: 1px solid #ff3975;
+  border-radius: 16px;
+  background: radial-gradient(ellipse at top, #4a1834, #14121d 80%);
+  box-shadow: 0 0 70px #ff32692a;
+}
+.binding-modal > svg {
+  color: #ff3975;
+}
+@media (max-width: 1000px) {
+  .controls-columns {
+    grid-template-columns: 1fr;
+  }
+}

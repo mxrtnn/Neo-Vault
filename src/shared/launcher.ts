@@ -16,6 +16,11 @@ export interface LauncherResult {
   message: string
 }
 export interface LauncherAPI {
+  getArcadeControls: (profile: string) => Promise<import('./arcadeControls').ArcadeControls>
+  saveArcadeControls: (
+    profile: string,
+    controls: import('./arcadeControls').ArcadeControls
+  ) => Promise<import('./arcadeControls').ArcadeControls>
   getConfig: () => Promise<LauncherConfig>
   chooseRetroarch: () => Promise<LauncherConfig | null>
   chooseCore: (system: RetroSystem) => Promise<LauncherConfig | null>

@@ -1,4 +1,8 @@
 import EmulationSettings from './components/EmulationSettings'
+import ControlsSettings from './components/ControlsSettings'
+import { readNavigation, controlKeyLabel } from './navigationControls'
+import StartupBrand from './components/StartupBrand'
+import brandIcon from './assets/branding/neo-vault.png'
 import { toggleFavorite, type Vault } from './profiles'
 import { useEffect, useState } from 'react'
 import { useInputDevices, useVaultAction } from './hooks/useInputDevices'
@@ -135,11 +139,13 @@ function readVault(): Vault {
 }
 export default function App(): React.JSX.Element {
   const input = useInputDevices()
+  const navigation = readNavigation()
   const [vault, setVault] = useState(readVault)
   const [page, setPage] = useState<'consoles' | 'games' | 'profiles' | 'settings'>('consoles')
   const [index, setIndex] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
   const [name, setName] = useState('')
+  const [settingsTab, setSettingsTab] = useState<'information' | 'controls'>('information')
 
   const [storageError, setStorageError] = useState(false)
   const system = systems[index]
@@ -181,9 +187,12 @@ export default function App(): React.JSX.Element {
   }
   return (
     <div className="vault-app">
+      <StartupBrand />
       <header className="vault-header">
         <button className="brand" onClick={() => setPage('consoles')}>
-          <span className="brand-logo">NV</span>
+          <span className="brand-logo">
+            <img src={brandIcon} alt="" draggable={false} />
+          </span>
           <span>
             <strong>NEO-VAULT</strong>
             <small>RETRO GAMING PLATFORM</small>
@@ -381,78 +390,87 @@ export default function App(): React.JSX.Element {
         </main>
       )}
       {page === 'settings' && (
-        <main className="content-page">
+        <main className="content-page settings-dashboard">
           <span className="eyebrow">CENTRO DE CONTROL</span>
           <h1>Configuración</h1>
-          <EmulationSettings />
-          <div className="settings-panel">
-            <Settings2 size={32} />
-            <h2>Controles</h2>
-            <p>
-              Teclado: flechas para navegar, Enter para seleccionar, Esc para volver y F para
-              favoritos. Mando estándar: cruceta o stick, A para seleccionar, B para volver y Y para
-              favoritos; LB/RB avanza diez juegos.
-            </p>
-            <p>
-              Conecta o empareja el mando en Windows y presiona un botón con Neo-Vault enfocado. La
-              conexión USB o Bluetooth la gestiona Windows.
-            </p>
-            <p role="status">
-              {input.name
-                ? `Mando: ${input.name}`
-                : 'No se detecta un mando. Presiona un botón para activarlo.'}
-            </p>
-            <p>
-              {input.name && !input.standard
-                ? 'Este mando no informa un mapeo estándar; la navegación automática está desactivada para evitar controles incorrectos.'
-                : 'Compatible con mandos que el navegador identifica con mapeo estándar.'}
-            </p>
-            <p>Prueba de controles: {input.lastAction}</p>
-            <h2>Preparando tu colección</h2>
-            <p>
-              Puedes conectar RetroArch para NES y SNES arriba. El catálogo de las demás consolas es
-              de referencia. MAME dispone de un catálogo local de la versión 0.289.
-            </p>
-            <p>
-              Los favoritos se guardan automáticamente por perfil en este equipo. La estética está
-              inspirada en HyperSpin; su motor no forma parte de la aplicación.
-            </p>
-            <h3>Catálogo en línea</h3>
-            <p>
-              Listas de Libretro basadas en No-Intro y Redump, con regiones y revisiones. No se
-              garantiza que contengan todos los juegos existentes. No incluyen archivos de juegos.
-              El catálogo MAME 0.289 se incluye como metadatos locales; no incluye ROMs.
-            </p>
-            <h3>Créditos de imágenes</h3>
-            <p>
-              Vistas previas de juegos: libretro-thumbnails (cuando existe una coincidencia de
-              nombre).
-            </p>
-            <p>
-              <a
-                href="https://creativecommons.org/licenses/by-sa/2.0/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Licencia de la imagen arcade: CC BY-SA 2.0
-              </a>
-            </p>
-            <p>
-              Consolas: fotografías de Evan-Amos / Wikimedia Commons (dominio público). Arcade:
-              Joshua Driggs (ZapWizard), fondo retirado por bayo y transparencia por Shooke; CC
-              BY-SA 2.0. Sin modificaciones adicionales. Las imágenes se cargan desde internet; la
-              caché depende del navegador integrado y no garantiza disponibilidad sin conexión.
-            </p>
-            <ul>
-              {Object.entries(consoleImages).map(([id, image]) => (
-                <li key={id}>
-                  <a href={image.source} target="_blank" rel="noreferrer">
-                    {systems.find((s) => s.id === id)?.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
+          <div className="settings-tabs" role="tablist" aria-label="Configuración">
+            <button
+              role="tab"
+              id="information-tab"
+              aria-selected={settingsTab === 'information'}
+              aria-controls="information-panel"
+              onClick={() => setSettingsTab('information')}
+            >
+              Información
+            </button>
+            <button
+              role="tab"
+              id="controls-tab"
+              aria-selected={settingsTab === 'controls'}
+              aria-controls="controls-panel"
+              onClick={() => setSettingsTab('controls')}
+            >
+              Mandos
+            </button>
           </div>
+          {settingsTab === 'controls' ? (
+            <section role="tabpanel" id="controls-panel" aria-labelledby="controls-tab">
+              <ControlsSettings key={profile.id} profileId={profile.id} input={input} />
+            </section>
+          ) : (
+            <section role="tabpanel" id="information-panel" aria-labelledby="information-tab">
+              <EmulationSettings />
+              <div className="settings-panel">
+                <Settings2 size={32} />
+                <h2>Preparando tu colección</h2>
+                <p>
+                  Puedes conectar RetroArch para NES y SNES arriba. El catálogo de las demás
+                  consolas es de referencia. MAME dispone de un catálogo local incluido con
+                  Neo-Vault.
+                </p>
+                <p>
+                  Los favoritos se guardan automáticamente por perfil en este equipo. La estética
+                  está inspirada en HyperSpin; su motor no forma parte de la aplicación.
+                </p>
+                <h3>Catálogo en línea</h3>
+                <p>
+                  Listas de Libretro basadas en No-Intro y Redump, con regiones y revisiones. No se
+                  garantiza que contengan todos los juegos existentes. No incluyen archivos de
+                  juegos. El catálogo MAME se incluye como metadatos locales; no incluye ROMs.
+                </p>
+                <h3>Créditos de imágenes</h3>
+                <p>
+                  Vistas previas de juegos: libretro-thumbnails (cuando existe una coincidencia de
+                  nombre).
+                </p>
+                <p>
+                  <a
+                    href="https://creativecommons.org/licenses/by-sa/2.0/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Licencia de la imagen arcade: CC BY-SA 2.0
+                  </a>
+                </p>
+                <p>
+                  Consolas: fotografías de Evan-Amos / Wikimedia Commons (dominio público). Arcade:
+                  Joshua Driggs (ZapWizard), fondo retirado por bayo y transparencia por Shooke; CC
+                  BY-SA 2.0. Sin modificaciones adicionales. Las imágenes se cargan desde internet;
+                  la caché depende del navegador integrado y no garantiza disponibilidad sin
+                  conexión.
+                </p>
+                <ul>
+                  {Object.entries(consoleImages).map(([id, image]) => (
+                    <li key={id}>
+                      <a href={image.source} target="_blank" rel="noreferrer">
+                        {systems.find((s) => s.id === id)?.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
         </main>
       )}
       <footer className="vault-footer">
@@ -460,7 +478,9 @@ export default function App(): React.JSX.Element {
           <b>NEO-VAULT</b> · {page === 'games' ? 'GAME LIBRARY' : 'SYSTEM SELECTOR'}
         </span>
         <span>
-          ↑ ↓ / Stick Navegar <kbd>Enter</kbd> Explorar <kbd>Esc</kbd> Volver
+          {controlKeyLabel(navigation.up.key)} {controlKeyLabel(navigation.down.key)} / Stick
+          Navegar <kbd>{controlKeyLabel(navigation.accept.key)}</kbd> Explorar{' '}
+          <kbd>{controlKeyLabel(navigation.back.key)}</kbd> Volver
         </span>
         <span title={input.name || 'Conecta un mando y presiona un botón'}>
           {input.name ? (input.standard ? 'MANDO CONECTADO' : 'MANDO SIN MAPEO') : 'TECLADO'} ·

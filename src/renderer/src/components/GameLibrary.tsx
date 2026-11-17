@@ -6,6 +6,9 @@ import { catalogSources, fetchCatalog } from '../catalog'
 import { useVaultAction } from '../hooks/useInputDevices'
 import GamePreview from './GamePreview'
 import GameArtwork from './GameArtwork'
+import ArcadePreview from './ArcadePreview'
+import { arcadeDemoIndex, validArcadeVideo } from '../arcadeThemePlan'
+import { readNavigation, controlKeyLabel } from '../navigationControls'
 type Props = {
   system: { id: string; name: string; brand: string; mark: string; games: string[] }
   profileId: string
@@ -21,6 +24,7 @@ export default function GameLibrary({
   onFavorite,
   onBack
 }: Props): React.JSX.Element {
+  const navigation = readNavigation()
   const [games, setGames] = useState<string[]>(cache.get(system.id) || system.games)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'sample'>(
     catalogSources[system.id] ? 'loading' : 'sample'
@@ -30,8 +34,33 @@ export default function GameLibrary({
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [attempt, setAttempt] = useState(0)
   const [onlyFavorites, setOnlyFavorites] = useState(false)
-  const [onlyLocal, setOnlyLocal] = useState(false)
+  const [onlyLocal, setOnlyLocal] = useState(system.id === 'arcade')
   const [notice, setNotice] = useState('')
+  const isArcade = system.id === 'arcade'
+  const [light, setLight] = useState(() => {
+    try {
+      return (
+        localStorage.getItem('neo-vault.mame.light') === 'true' ||
+        matchMedia('(prefers-reduced-motion: reduce)').matches
+      )
+    } catch {
+      return true
+    }
+  })
+  const [demo, setDemo] = useState(false)
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  const optionsRef = useRef<HTMLDetailsElement>(null)
+  const [demonstrating, setDemonstrating] = useState(false)
+  const lastInput = useRef(0)
+  const restored = useRef(false)
+  const [videos, setVideos] = useState<Record<string, string>>({})
+  const videoUrls = useRef(new Set<string>())
+  useEffect(
+    () => () => {
+      videoUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    },
+    []
+  )
   const { config, error: configError, setConfig } = useLauncher()
   const [busy, setBusy] = useState(false)
   const [running, setRunning] = useState(false)
@@ -67,6 +96,7 @@ export default function GameLibrary({
         if (disposed) return
         cache.set(system.id, result)
         setGames(result)
+        restored.current = false
         setSelectedIndex(0)
         setStatus('ready')
       })
@@ -81,7 +111,7 @@ export default function GameLibrary({
       controller.abort()
       window.clearTimeout(timeout)
     }
-  }, [system.id, attempt])
+  }, [system.id, attempt, profileId])
   useEffect(() => {
     const wheel = wheelRef.current
     if (!wheel) return
@@ -115,6 +145,10 @@ export default function GameLibrary({
           game.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
           (!onlyFavorites || favorites.includes(`${system.id}:${game}`)) &&
           (!onlyLocal ||
+            system.id !== 'arcade' ||
+            (!!arcade?.arcadeByTitle.has(game) &&
+              arcade.arcadeByTitle.get(game)?.status !== 'preliminary')) &&
+          (!onlyLocal ||
             !!config?.bindings[`${system.id}:${game}`] ||
             (system.id === 'arcade' &&
               !!config?.mamePath &&
@@ -130,6 +164,76 @@ export default function GameLibrary({
   )
   const visible = filtered.slice(start, start + slotCount)
   const saved = !!selected && favorites.includes(`${system.id}:${selected}`)
+  useEffect(() => {
+    if (!isArcade || status !== 'ready' || !config || !arcade || restored.current) return
+    let disposed = false
+    let index = -1
+    try {
+      index = filtered.indexOf(localStorage.getItem(`neo-vault.mame.last.${profileId}`) ?? '')
+    } catch {
+      /* Optional preference. */
+    }
+    queueMicrotask(() => {
+      if (disposed) return
+      restored.current = true
+      if (index >= 0) setSelectedIndex(index)
+    })
+    return () => {
+      disposed = true
+    }
+  }, [isArcade, status, config, arcade, filtered, profileId])
+  useEffect(() => {
+    if (!isArcade || !restored.current || !selected || demonstrating) return
+    try {
+      localStorage.setItem(`neo-vault.mame.last.${profileId}`, selected)
+    } catch {
+      /* The catalog remains usable without storage. */
+    }
+  }, [isArcade, selected, profileId, demonstrating])
+  useEffect(() => {
+    if (!isArcade || !demo) return
+    const touch = (): void => {
+      lastInput.current = performance.now()
+      setDemonstrating(false)
+    }
+    lastInput.current = performance.now()
+    const events = ['keydown', 'pointerdown', 'pointermove', 'wheel', 'vault-action', 'blur']
+    events.forEach((name) => window.addEventListener(name, touch))
+    const timer = window.setInterval(() => {
+      const now = performance.now()
+      const blocked =
+        optionsOpen ||
+        busy ||
+        running ||
+        !document.hasFocus() ||
+        !!document.activeElement?.closest('input,textarea,select')
+      if (
+        arcadeDemoIndex({
+          now,
+          lastInput: lastInput.current,
+          count: filtered.length,
+          index: 0,
+          blocked
+        }) === null
+      )
+        return
+      setDemonstrating(true)
+      setSelectedIndex(
+        (index) =>
+          arcadeDemoIndex({
+            now,
+            lastInput: lastInput.current,
+            count: filtered.length,
+            index,
+            blocked
+          }) ?? index
+      )
+    }, 7000)
+    return () => {
+      clearInterval(timer)
+      events.forEach((name) => window.removeEventListener(name, touch))
+    }
+  }, [isArcade, demo, busy, running, optionsOpen, filtered.length])
   function move(delta: number): void {
     if (busy || running) return
     const length = filtered.length
@@ -139,6 +243,13 @@ export default function GameLibrary({
   const playable = system.id === 'nes' || system.id === 'snes' || system.id === 'arcade'
   const arcadeGame = system.id === 'arcade' ? arcade?.arcadeByTitle.get(selected) : undefined
   const officialPage = arcadeGame ? arcade?.officialArcadePages[arcadeGame.id] : undefined
+  const finalFight = arcade?.arcadeById.get('ffight')?.title
+  const testTitle =
+    finalFight && config?.bindings[`arcade:${finalFight}`]
+      ? finalFight
+      : config?.bindings['arcade:Gridlee']
+        ? 'Gridlee'
+        : 'Pong (Rev E)'
   const bound = selected ? config?.bindings[`${system.id}:${selected}`] : undefined
   async function importLocal(): Promise<void> {
     if (!playable || busy || running) return
@@ -268,6 +379,13 @@ export default function GameLibrary({
   }
   useVaultAction((action) => {
     if (busy || running) return
+    if (optionsOpen) {
+      if (action === 'back' && optionsRef.current) {
+        optionsRef.current.open = false
+        optionsRef.current.querySelector('summary')?.focus()
+      }
+      return
+    }
     if (action === 'back') {
       if (notice) setNotice('')
       else onBack()
@@ -280,46 +398,167 @@ export default function GameLibrary({
     if (action === 'favorite' && selected) onFavorite(`${system.id}:${selected}`)
   })
   return (
-    <main className="hyperspin-library">
+    <main
+      className={`hyperspin-library${isArcade ? ` mame-library${light ? ' mame-light' : ''}` : ''}`}
+    >
+      {isArcade && <div className="arcade-scenery" aria-hidden="true" />}
       <div className="catalog-topbar">
         <button className="back" onClick={onBack}>
           <ArrowLeft size={17} /> {system.name}
         </button>
-        <span className="subtle">
-          {status === 'ready'
-            ? `${games.length.toLocaleString('es')} títulos y variantes · ${system.id === 'arcade' ? 'MAME 0.289' : 'Libretro'}`
-            : status === 'loading'
-              ? 'Consultando catálogo…'
-              : 'Selección de muestra'}
-        </span>
+        {!isArcade && (
+          <span className="subtle">
+            {status === 'ready'
+              ? `${games.length.toLocaleString('es')} títulos y variantes · ${system.id === 'arcade' ? 'MAME' : 'Libretro'}`
+              : status === 'loading'
+                ? 'Consultando catálogo…'
+                : 'Selección de muestra'}
+          </span>
+        )}
       </div>
+      {isArcade && (
+        <details
+          className="arcade-options"
+          ref={optionsRef}
+          onToggle={(event) => setOptionsOpen(event.currentTarget.open)}
+        >
+          <summary>Opciones</summary>
+          <div className="arcade-theme-bar" aria-label="Opciones de MAME">
+            <strong>Presentación</strong>
+            <button
+              aria-pressed={light}
+              onClick={() => {
+                setLight(!light)
+                try {
+                  localStorage.setItem('neo-vault.mame.light', String(!light))
+                } catch {
+                  /* Optional preference. */
+                }
+              }}
+            >
+              Modo ligero {light ? 'activado' : 'desactivado'}
+            </button>
+            <button
+              aria-pressed={demo}
+              onClick={() => {
+                setDemo(!demo)
+                setDemonstrating(false)
+              }}
+            >
+              {demonstrating
+                ? 'Demostración en curso'
+                : `Demostración ${demo ? 'activada' : 'desactivada'}`}
+            </button>
+            <small>45 s de reposo · no inicia juegos</small>
+            <label className="arcade-video-picker">
+              Video del juego
+              <input
+                type="file"
+                accept="video/mp4,video/webm"
+                disabled={!selected || busy || running}
+                aria-label="Elegir video local para el juego seleccionado"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  if (!file || !selected) return
+                  if (!validArcadeVideo(file.name, file.size)) {
+                    setNotice('Elige un video MP4 o WebM de hasta 100 MB.')
+                    return
+                  }
+                  if (!videos[selected] && videoUrls.current.size >= 20) {
+                    setNotice(
+                      'Límite de 20 videos por sesión de catálogo. Vuelve a entrar para liberar los videos.'
+                    )
+                    return
+                  }
+                  const previous = videos[selected]
+                  if (previous) {
+                    URL.revokeObjectURL(previous)
+                    videoUrls.current.delete(previous)
+                  }
+                  const url = URL.createObjectURL(file)
+                  videoUrls.current.add(url)
+                  setVideos((current) => ({ ...current, [selected]: url }))
+                  setNotice(
+                    'Video añadido para esta sesión de MAME, sin copiar el archivo. El modo ligero muestra solo la captura.'
+                  )
+                }}
+              />
+            </label>
+            <strong>Biblioteca</strong>
+            <button
+              disabled={busy || running || !config}
+              onClick={() => {
+                void importLocal()
+              }}
+            >
+              Añadir carpeta
+            </button>
+            <button
+              disabled={busy || running || !config?.mamePath}
+              onClick={() => {
+                void audit(true)
+              }}
+            >
+              Verificar colección
+            </button>
+            <button
+              disabled={busy || running || !selected || !config?.mamePath}
+              onClick={() => {
+                void audit()
+              }}
+            >
+              Verificar juego
+            </button>
+            <button
+              disabled={busy || running || !config || !arcade}
+              onClick={() => {
+                const game = testTitle
+                setQuery(game)
+                setSelectedIndex(0)
+                setOnlyLocal(false)
+                setOnlyFavorites(false)
+                if (optionsRef.current) optionsRef.current.open = false
+                setOptionsOpen(false)
+                void select(game)
+              }}
+            >
+              {testTitle === finalFight
+                ? 'Probar Final Fight'
+                : testTitle === 'Gridlee'
+                  ? 'Probar Gridlee'
+                  : 'Probar Pong'}
+            </button>
+            {officialPage && (
+              <button
+                disabled={busy || running}
+                onClick={() => {
+                  void sourcePage()
+                }}
+              >
+                Fuente oficial del juego
+              </button>
+            )}
+            <a href="https://www.mamedev.org/roms/" target="_blank" rel="noreferrer">
+              Juegos gratuitos de MAMEdev
+            </a>
+            <p>
+              5: crédito · 1: iniciar · P/F5: pausa · Esc: salir · Tab: controles de este juego.
+            </p>
+            {arcadeGame && (
+              <p>
+                {arcadeGame.year} · {arcadeGame.manufacturer} ·{' '}
+                {arcadeGame.status === 'preliminary'
+                  ? 'Preliminar'
+                  : arcadeGame.status === 'imperfect'
+                    ? 'Emulación con limitaciones'
+                    : 'Driver operativo'}
+              </p>
+            )}
+          </div>
+        </details>
+      )}
       <div className="library-toolbar">
-        {system.id === 'arcade' && (
-          <button
-            className="secondary filter-button"
-            disabled={busy || running || !config?.mamePath}
-            onClick={() => {
-              void audit(true)
-            }}
-          >
-            Verificar colección
-          </button>
-        )}
-        {system.id === 'arcade' && (
-          <button
-            className="secondary filter-button"
-            disabled={busy || running || !config || !arcade}
-            onClick={() => {
-              setQuery('Pong (Rev E)')
-              setSelectedIndex(0)
-              setOnlyLocal(false)
-              setOnlyFavorites(false)
-              void select('Pong (Rev E)')
-            }}
-          >
-            Probar Pong · sin ROM
-          </button>
-        )}
         {system.id === 'snes' && (
           <button
             className="secondary filter-button"
@@ -356,7 +595,7 @@ export default function GameLibrary({
           <Heart size={16} />
           Favoritos
         </button>
-        {catalogSources[system.id] && (
+        {!isArcade && catalogSources[system.id] && (
           <button
             className="secondary filter-button"
             disabled={status === 'loading'}
@@ -370,7 +609,9 @@ export default function GameLibrary({
             Actualizar
           </button>
         )}
-        <span className="subtle">{filtered.length.toLocaleString('es')} resultados</span>
+        {!isArcade && (
+          <span className="subtle">{filtered.length.toLocaleString('es')} resultados</span>
+        )}
         {playable && (
           <>
             <button
@@ -383,24 +624,20 @@ export default function GameLibrary({
             >
               {system.id === 'arcade' ? 'Mis juegos' : 'Archivos locales'}
             </button>
-            <button
-              className="secondary filter-button"
-              disabled={busy || running || !config}
-              onClick={() => {
-                void importLocal()
-              }}
-            >
-              {system.id === 'arcade' ? 'Añadir carpeta' : 'Importar juego'}
-            </button>
+            {!isArcade && (
+              <button
+                className="secondary filter-button"
+                disabled={busy || running || !config}
+                onClick={() => {
+                  void importLocal()
+                }}
+              >
+                {system.id === 'arcade' ? 'Añadir carpeta' : 'Importar juego'}
+              </button>
+            )}
           </>
         )}
       </div>
-      {system.id === 'arcade' && (
-        <p className="catalog-status">
-          5: crédito · 1: iniciar · Esc: volver · Tab: controles de MAME. Las fuentes oficiales
-          requieren aceptar sus condiciones en su propia web.
-        </p>
-      )}
       {status === 'error' && (
         <p className="catalog-status" role="status">
           {error} Se conserva{' '}
@@ -412,22 +649,33 @@ export default function GameLibrary({
           {selected ? (
             <>
               <div className="game-cinematic" key={`${system.id}:${selected}`}>
-                <GamePreview key={selected} game={selected} systemId={system.id} />
+                {isArcade ? (
+                  <ArcadePreview
+                    key={`${selected}:${videos[selected] ?? ''}`}
+                    game={selected}
+                    video={videos[selected]}
+                    light={light}
+                  />
+                ) : (
+                  <GamePreview key={selected} game={selected} systemId={system.id} />
+                )}
               </div>
               <div className="game-description">
                 <span className="eyebrow">
                   {system.mark} / {status === 'sample' ? 'MUESTRA' : 'CATÁLOGO DE REFERENCIA'}
                 </span>
                 <h1 title={selected}>{selected}</h1>
-                <p className="game-association" title={bound}>
-                  {arcadeGame?.romless
-                    ? 'NO NECESITA ROM EXTERNA'
-                    : bound
-                      ? 'ARCHIVO LOCAL ASOCIADO'
-                      : playable
-                        ? 'SIN ARCHIVO LOCAL'
-                        : 'EMULACIÓN PENDIENTE'}
-                </p>
+                {!isArcade && (
+                  <p className="game-association" title={bound}>
+                    {arcadeGame?.romless
+                      ? 'NO NECESITA ROM EXTERNA'
+                      : bound
+                        ? 'ARCHIVO LOCAL ASOCIADO'
+                        : playable
+                          ? 'SIN ARCHIVO LOCAL'
+                          : 'EMULACIÓN PENDIENTE'}
+                  </p>
+                )}
                 <div className="game-actions">
                   <button
                     className="primary"
@@ -469,35 +717,6 @@ export default function GameLibrary({
                       : 'Asociar archivo local (.nes / .sfc / .smc)'}
                   </button>
                 )}
-                {system.id === 'arcade' && (
-                  <div className="arcade-actions">
-                    <button
-                      className="associate-button"
-                      disabled={busy || running || !config?.mamePath}
-                      onClick={() => {
-                        void audit()
-                      }}
-                    >
-                      Verificar set
-                    </button>
-                    {officialPage && (
-                      <button
-                        className="associate-button"
-                        disabled={busy || running}
-                        onClick={() => {
-                          void sourcePage()
-                        }}
-                      >
-                        Abrir fuente oficial
-                      </button>
-                    )}
-                    <span className="subtle">
-                      {arcadeGame
-                        ? `${arcadeGame.year} · ${arcadeGame.status === 'preliminary' ? 'Preliminar' : arcadeGame.status === 'imperfect' ? 'Emulación con limitaciones' : 'Driver operativo'}`
-                        : ''}
-                    </span>
-                  </div>
-                )}
               </div>
             </>
           ) : (
@@ -520,7 +739,7 @@ export default function GameLibrary({
           }}
         >
           <div className="section-heading">
-            <span>SELECCIONA TU JUEGO</span>
+            {!isArcade && <span>SELECCIONA TU JUEGO</span>}
             <span>
               {selected ? current + 1 : 0} / {filtered.length}
             </span>
@@ -584,20 +803,36 @@ export default function GameLibrary({
           </button>
         </section>
       </div>
-      <div className="catalog-bottom" role="status">
-        <span>
-          {notice ||
-            '↑ ↓ / Stick: navegar · Enter / A: seleccionar · F / Y: favorito · Esc / B: volver'}
-        </span>
-        {notice && (
-          <button onClick={() => setNotice('')} aria-label="Cerrar aviso">
-            ×
-          </button>
-        )}
-        <a href="https://github.com/libretro/libretro-database" target="_blank" rel="noreferrer">
-          Fuente
-        </a>
-      </div>
+      {(!isArcade || notice) && (
+        <div className="catalog-bottom" role="status">
+          <span>
+            {notice ||
+              `${controlKeyLabel(navigation.up.key)} ${controlKeyLabel(navigation.down.key)} / Stick: navegar · ${controlKeyLabel(navigation.accept.key)}: seleccionar · ${controlKeyLabel(navigation.favorite.key)}: favorito · ${controlKeyLabel(navigation.back.key)}: volver`}
+          </span>
+          {notice && (
+            <button onClick={() => setNotice('')} aria-label="Cerrar aviso">
+              ×
+            </button>
+          )}
+          <a
+            href={
+              isArcade
+                ? 'https://www.mamedev.org/'
+                : 'https://github.com/libretro/libretro-database'
+            }
+            target="_blank"
+            rel="noreferrer"
+          >
+            Fuente
+          </a>
+        </div>
+      )}
+      {isArcade && (busy || running) && (
+        <div className="arcade-launch-curtain" role="status">
+          <strong>MAME</strong>
+          <span>{running ? 'EN JUEGO' : 'PREPARANDO ARCADE…'}</span>
+        </div>
+      )}
     </main>
   )
 }

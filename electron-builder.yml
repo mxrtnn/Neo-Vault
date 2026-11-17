@@ -1,9 +1,10 @@
-appId: com.electron.app
+appId: com.neovault.desktop
 productName: neo-vault
 directories:
   buildResources: build
 files:
   - '!runtime/**'
+  - '!ROMS/**'
   - '!scripts/**'
   - '!data/**'
   - '!work/**'
@@ -20,6 +21,7 @@ extraFiles:
   - from: runtime
     to: runtime
 win:
+  icon: build/icon.ico
   executableName: neo-vault
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
